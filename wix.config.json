@@ -1,0 +1,5 @@
+{
+  "$schema": "https://dev.wix.com/wix-cli/schemas/wix-config.json",
+  "appId": "dfe15e39-43f8-4d95-9660-6a0bc0725c0d",
+  "projectId": "pair-chavrutas"
+}
