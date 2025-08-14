@@ -1,0 +1,8 @@
+{
+  "$schema": "https://dev.wix.com/wix-cli/schemas/dashboard-modal.json",
+  "id": "45308f7c-1309-42a3-8a0b-00611cab9ebe",
+  "title": "User Card Modal",
+  "width": 550,
+  "height": 600
+  
+}

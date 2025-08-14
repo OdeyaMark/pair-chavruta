@@ -1,0 +1,6 @@
+{
+  "$schema": "https://dev.wix.com/wix-cli/schemas/dashboard-page.json",
+  "id": "df07c250-49a3-4acc-babc-68ea8be9d5f0",
+  "title": "Users"
+}
+
