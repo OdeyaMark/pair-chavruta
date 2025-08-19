@@ -86,17 +86,115 @@
 }
 
 .track-tag {
-  background-color: #eff6ff;
+  position: relative;
+  background: linear-gradient(135deg, #e0eaff 0%, #d5e3ff 100%);
   color: #1d4ed8;
-  padding: 0.5rem 1rem;
-  border-radius: 0.5rem;
+  padding: 0.5rem 2rem 0.5rem 1rem;
+  border-radius: 20px;
+  border: 1px solid rgba(29, 78, 216, 0.15);
   font-size: 0.875rem;
   font-weight: 500;
-  transition: background-color 0.2s;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .track-tag:hover {
-  background-color: #dbeafe;
+  background: linear-gradient(135deg, #d5e3ff 0%, #c7d9ff 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.remove-track-button {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  padding: 2px;
+  cursor: pointer;
+  color: #666;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.remove-track-button:hover {
+  color: #ff4444;
+}
+
+.add-track-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  margin-left: auto;
+  border: none;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #0073ea 0%, #0056b3 100%);
+  color: white;
+  font-weight: 500;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.add-track-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  background: linear-gradient(135deg, #0084ff 0%, #0062cc 100%);
+}
+
+.add-track-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.add-track-button svg {
+  transition: transform 0.2s ease;
+}
+
+.add-track-button:hover svg {
+  transform: rotate(90deg);
+}
+
+.track-selector {
+  margin-top: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 1rem;
+  background-color: #f9fafb;
+  border-radius: 0.5rem;
+  border: 1px solid #e5e7eb;
+}
+
+.track-option {
+  background: linear-gradient(135deg, #e0eaff 0%, #d5e3ff 100%);
+  color: #1d4ed8;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  border: 1px solid rgba(29, 78, 216, 0.15);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.track-option:hover {
+  background: linear-gradient(135deg, #d5e3ff 0%, #c7d9ff 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.track-option:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 /* Learning times table */
@@ -132,6 +230,7 @@
   width: 1.5rem;
   height: 1.5rem;
   border-radius: 9999px;
+  transition: all 0.2s ease;
 }
 
 .time-indicator.available {
@@ -142,6 +241,30 @@
 .time-indicator.unavailable {
   background-color: #e5e7eb;
   color: #9ca3af;
+}
+
+td[style*="cursor: pointer"]:hover .time-indicator {
+  transform: scale(1.1);
+  opacity: 0.8;
+}
+
+.time-cell {
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.time-cell:hover::after {
+  content: 'Click to toggle';
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.8);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 /* Questions section */
@@ -215,4 +338,27 @@
 /* Capitalize text */
 .capitalize {
   text-transform: capitalize;
+}
+
+.editable-value {
+  padding: 4px 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  width: 100%;
+  font-size: 14px;
+}
+
+.save-button {
+  background-color: #0073ea;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  margin-top: 16px;
+}
+
+.save-button:hover {
+  background-color: #0066cc;
 }

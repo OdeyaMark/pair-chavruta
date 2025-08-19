@@ -1,28 +1,36 @@
-
-import { createClient } from '@wix/sdk';
 import consola from 'consola';
 import { items } from '@wix/data';
-import { dashboard } from '@wix/dashboard';
-import * as fs from 'fs';
-import * as path from 'path';
 
-// const wixClient = createClient({
-//   host: dashboard.host(),
-//   //appDefId: 'your-app-def-id', // Replace with your actual app definition ID
-//   modules: { items },
-// });
+
+
+
 
 
 export async function fetchCMSData() {
   try {
   consola.info('Fetching CMS data...');
   const results = await items.query('regFormEn').fields("fullName", "country", "havrutaFound", "_createdDate", "_id").limit(1000).find();
-  consola.success('CMS Data:', results.items);
   return results.items;
   } catch (error) {
   consola.error('Error fetching CMS data:', error);
   }
 }
+  
+export async function saveUserChanges(userData: User, user_id: string) {
+  try {
+    consola.info('Saving user changes...', userData);
+    if (!user_id) {
+      throw new Error('User ID is required');
+    }
+    userData._id = user_id;
+    const results = await items.update("regFormEn", userData);
+    return results;
+  } catch (error) {
+    consola.error('Error saving user changes:', error);
+    throw error; // Rethrow to handle in UI
+  }
+}
+
 
 export async function fetchUserById(userId: string) {
   try {
@@ -80,3 +88,22 @@ export async function getTracks(): Promise<Track[]> {
   consola.info('Using tracks from static file');
   return tracksData.tracks;
 }
+
+export const fetchUserContact = async (userId: string): Promise<{ email: string; tel: string }> => {
+  try {
+    const response = await items.query('regFormEn')
+      .eq('_id', userId).fields('email', 'tel')
+      .find();
+    
+    const user = response.items[0];
+    return {
+      email: user?.email || '',
+      tel: user?.tel || ''
+    };
+  } catch (error) {
+    console.error('Error fetching user contact:', error);
+    return { email: '', tel: '' };
+  }
+};
+
+

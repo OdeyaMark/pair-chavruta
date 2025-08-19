@@ -1,202 +1,103 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, ChevronUp, Clock, Globe, User, BookOpen, MessageCircle, Calendar } from 'lucide-react';
+import { ChevronDown, ChevronUp, Globe, User, BookOpen, MessageCircle, Calendar } from 'lucide-react';
 import './UserCard.css';
 import { getTracks } from '../data/cmsData';
+import { 
+  formatUserData, 
+  type ChavrutaCardProps, 
+  type LabelValuePair, 
+  type Question, 
+  type LearningTimes 
+} from '../data/formatters';
 
-interface LabelValuePair {
-  label: string;
-  value: string | number;
-}
-
-interface Question {
+interface Track {
   id: string;
-  question: string;
-  answer: string;
+  trackEn: string;
 }
 
-interface LearningTime {
-  morning: boolean;
-  afternoon: boolean;
-  evening: boolean;
-}
+const EditableLabelValue = React.memo<{ 
+  item: LabelValuePair;
+  onChange: (value: string) => void;
+}>(({ item, onChange }) => (
+  <div className="label-value-item">
+    <span className="item-label">{item.label}:</span>
+    <input
+      type="text"
+      value={item.value}
+      onChange={(e) => onChange(e.target.value)}
+      className="editable-value"
+    />
+  </div>
+));
 
-interface LearningTimes {
-  sunday: LearningTime;
-  monday: LearningTime;
-  tuesday: LearningTime;
-  wednesday: LearningTime;
-  thursday: LearningTime;
-}
+const LabelValueSection = React.memo<{ 
+  title: string; 
+  items: LabelValuePair[]; 
+  icon: React.ReactNode;
+  isEditMode?: boolean;
+  onItemChange?: (index: number, value: string) => void;
+  onItemRemove?: (index: number) => void;
+  onItemAdd?: () => void;
+  showAddButton?: boolean;
+}>(({ 
+  title, 
+  items, 
+  icon, 
+  isEditMode, 
+  onItemChange,
+  onItemRemove,
+  onItemAdd,
+  showAddButton
+}) => (
+  <div className="card-section">
+    <div className="section-header">
+      <div className="section-icon">{icon}</div>
+      <h3 className="section-title">{title}</h3>
+      {isEditMode && showAddButton && (
+        <button 
+          className="add-item-button"
+          onClick={onItemAdd}
+        >
+          <Plus size={16} />
+          Add {title.slice(0, -1)} {/* Removes 's' from title */}
+        </button>
+      )}
+    </div>
+    <div className="label-value-grid">
+      {items.map((item, index) => (
+        <div key={index} className="label-value-item">
+          {isEditMode && onItemChange ? (
+            <>
+              <EditableLabelValue
+                item={item}
+                onChange={(value) => onItemChange(index, value)}
+              />
+              {onItemRemove && (
+                <button
+                  className="remove-item-button"
+                  onClick={() => onItemRemove(index)}
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </>
+          ) : (
+            <>
+              <span className="item-label">{item.label}:</span>
+              <span className="item-value">{item.value}</span>
+            </>
+          )}
+        </div>
+      ))}
+    </div>
+  </div>
+));
 
-
-
-interface ChavrutaCardProps {
-  chavrutaPreference: LabelValuePair[];
-  extraDetails: LabelValuePair[];
-  learningTracks: string[];
-  languages: LabelValuePair[];
-  learningTimes: LearningTimes;
-  openQuestions: Question[];
-}
-
-interface UserCardProps {
-  user: Record<string, any>;
-}
-
-// Helper function to format the raw user data
-export async function formatUserData(rawUser: Record<string, any>): ChavrutaCardProps {
-    console.log("Formatting user data:", rawUser);
-  const checkTimeSlot = (dayValue: any, slot: string) => {
-    // If dayValue is null/undefined or not an array, return false
-    if (!dayValue || !Array.isArray(dayValue)) {
-      return false;
-    }
-    // Only check includes if we have a valid array
-    return dayValue.includes(slot) || false;
-  };
-
-  const learningTimes: LearningTimes = {
-    sunday: {
-      morning: checkTimeSlot(rawUser?.sunday, "Morning"),
-      afternoon: checkTimeSlot(rawUser?.sunday, "Noon"),
-      evening: checkTimeSlot(rawUser?.sunday, "Evening"),
-    },
-    monday: {
-      morning: checkTimeSlot(rawUser?.monday, "Morning"),
-      afternoon: checkTimeSlot(rawUser?.monday, "Noon"),
-      evening: checkTimeSlot(rawUser?.monday, "Evening"),
-    },
-    tuesday: {
-      morning: checkTimeSlot(rawUser?.tuesday, "Morning"),
-      afternoon: checkTimeSlot(rawUser?.tuesday, "Noon"),
-      evening: checkTimeSlot(rawUser?.tuesday, "Evening"),
-    },
-    wednesday: {
-      morning: checkTimeSlot(rawUser?.wednesday, "Morning"),
-      afternoon: checkTimeSlot(rawUser?.wednesday, "Noon"),
-      evening: checkTimeSlot(rawUser?.wednesday, "Evening"),
-    },
-    thursday: {
-      morning: checkTimeSlot(rawUser?.thursday, "Morning"),
-      afternoon: checkTimeSlot(rawUser?.thursday, "Noon"),
-      evening: checkTimeSlot(rawUser?.thursday, "Evening"),
-    },
-  };
-
-  const formatName = () => {
-    if (rawUser.fullName?.trim()) return rawUser.fullName;
-    const fName = rawUser.fName?.trim() || '';
-    const lName = rawUser.lName?.trim() || '';
-    return fName || lName ? `${fName} ${lName}`.trim() : 'Not specified';
-  };
-
-  const formatLocation = () => {
-    const city = rawUser.city?.trim() || '';
-    const country = rawUser.country?.trim() || '';
-    if (!city && !country) return 'Not specified';
-    if (!city) return country;
-    if (!country) return city;
-    return `${city}, ${country}`;
-  };
-  const formatField = (value: any) => {
-    if (!value) return 'Not specified';
-    const strValue = String(value).trim();
-    return strValue || 'Not specified';
-  };
-
-  const chavrutaPreference: LabelValuePair[] = [
-   
-    { label: 'Gender Preference', value: rawUser.menOrWomen?.trim() || 'No preference' },
-    { label: 'Learning Style', value: formatField(rawUser.learningStyle) },
-    { label: 'More Than One Chavruta', value: formatField(rawUser.moreThanOneChavruta) },
-    { label: 'Learning Skill', value: formatField(rawUser.learningSkill) },
-  ];
-
-  const extraDetails: LabelValuePair[] = [
-     { label: 'Gender', value: rawUser.gender?.trim() || 'Not specified' },
-        { label: 'Location', value: formatLocation() },
-    { label: 'Jewish Affiliation', value: formatField(rawUser.jewishAndComAff) },
-    { label: 'Profession', value: formatField(rawUser.profession) }
-  ];
-
-  const languages: LabelValuePair[] = [
-    ...(Array.isArray(rawUser.otherLan) && rawUser.otherLan.length > 0
-      ? rawUser.otherLan
-          .filter((lang: string | null) => lang && lang.trim())
-          .map((lang: string) => ({ label:'Additional Language', value:  lang.trim()}))
-      : [])
-  ];
-
-  const formatArrayResponse = (arr: any[] | null | undefined) => {
-    if (!Array.isArray(arr) || arr.length === 0) return 'None provided';
-    return arr
-      .filter(item => item && String(item).trim())
-      .join('\n') || 'None provided';
-  };
-
-  const openQuestions: Question[] = [
-    {
-      id: '1',
-      question: 'Background',
-      answer: formatField(rawUser.background)
-    },
-    {
-      id: '2',
-      question: 'Experience',
-      answer: formatField(rawUser.experience)
-    },
-    {
-      id: '3',
-      question: 'Requests',
-      answer: formatField(rawUser.requests)
-    },
-    {
-      id: '4',
-      question: 'Who Introduced You?',
-      answer: formatField(rawUser.whoIntroduced)
-    },
-    {
-      id: '5',
-      question: 'Hopes and Expectations',
-      answer: formatArrayResponse(rawUser.hopesExpectations)
-    },
-    {
-      id: '6',
-      question: 'Additional Information',
-      answer: formatField(rawUser.additionalInfo)
-    },
-    {
-      id: '7',
-      question: 'Anything Else',
-      answer: formatField(rawUser.anythingElse)
-    }
-  ];
-
-  const formatTrackNames = async (trackIds: string[] = []) => {
-    if (!Array.isArray(trackIds) || trackIds.length === 0) return [];
-    
-    const tracks = await getTracks();
-    return trackIds
-      .map(id => tracks.find(track => track.id === id)?.trackEn)
-      .filter((name): name is string => !!name); // filter out undefined and null values
-  };
-
-  // Get the track names from the prefTra field
-  const trackNames = await formatTrackNames(Array.isArray(rawUser.prefTra) ? rawUser.prefTra : []);
-
-  return {
-    chavrutaPreference,
-    extraDetails,
-    learningTracks: trackNames,
-    languages,
-    learningTimes,
-    openQuestions
-  };
-}
-
-const UserCard: React.FC<UserCardProps> = ({ user, ...props }) => {
+const UserCard = React.memo<UserCardProps>(({ user }) => {
   const [cardData, setCardData] = useState<ChavrutaCardProps | null>(null);
   const [expandedQuestions, setExpandedQuestions] = useState<Set<string>>(new Set());
+  const [availableTracks, setAvailableTracks] = useState<Track[]>([]);
+  const [showTrackSelector, setShowTrackSelector] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -205,6 +106,15 @@ const UserCard: React.FC<UserCardProps> = ({ user, ...props }) => {
     };
     loadData();
   }, [user]);
+
+  useEffect(() => {
+    const loadTracks = async () => {
+      const tracks = await getTracks();
+      setAvailableTracks(tracks);
+    };
+    loadTracks();
+  }, []);
+
   const toggleQuestion = (questionId: string) => {
     const newExpanded = new Set(expandedQuestions);
     if (newExpanded.has(questionId)) {
@@ -214,30 +124,6 @@ const UserCard: React.FC<UserCardProps> = ({ user, ...props }) => {
     }
     setExpandedQuestions(newExpanded);
   };
-
-  const LabelValueSection: React.FC<{ 
-    title: string; 
-    items: LabelValuePair[]; 
-    icon: React.ReactNode 
-  }> = ({ title, items, icon }) => (
-    <div className="card-section">
-      <div className="section-header">
-        <div className="section-icon">{icon}</div>
-        <h3 className="section-title">{title}</h3>
-      </div>
-      <div className="label-value-grid">
-        {items.map((item, index) => (
-          <div key={index} className="label-value-item">
-            <span className="item-label">{item.label}:</span>
-            <span className="item-value">{item.value}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-
-  const weekdays = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday'] as const;
-  const timeSlots = ['morning', 'afternoon', 'evening'] as const;
 
   if (!cardData) {
     return (
@@ -267,6 +153,10 @@ const UserCard: React.FC<UserCardProps> = ({ user, ...props }) => {
         title="Chavruta Preference" 
         items={chavrutaPreference}
         icon={<User size={20} />}
+        isEditMode={false}
+        onItemChange={() => {}}
+        onItemAdd={() => {}}
+        showAddButton={true}
       />
 
       {/* Extra Details Section */}
@@ -274,6 +164,10 @@ const UserCard: React.FC<UserCardProps> = ({ user, ...props }) => {
         title="Extra Details" 
         items={extraDetails}
         icon={<BookOpen size={20} />}
+        isEditMode={false}
+        onItemChange={() => {}}
+        onItemAdd={() => {}}
+        showAddButton={true}
       />
 
       {/* Languages Section */}
@@ -281,6 +175,11 @@ const UserCard: React.FC<UserCardProps> = ({ user, ...props }) => {
         title="Languages" 
         items={languages}
         icon={<Globe size={20} />}
+        isEditMode={false}
+        onItemChange={() => {}}
+        onItemRemove={() => {}}
+        onItemAdd={() => {}}
+        showAddButton={false}
       />
 
       {/* Learning Tracks Section */}
@@ -288,17 +187,49 @@ const UserCard: React.FC<UserCardProps> = ({ user, ...props }) => {
         <div className="section-header">
           <div className="section-icon"><BookOpen size={20} /></div>
           <h3 className="section-title">Learning Tracks</h3>
+          {false && (
+            <button 
+              className="add-track-button"
+              onClick={() => setShowTrackSelector(!showTrackSelector)}
+            >
+              <Plus size={16} />
+              Add Track
+            </button>
+          )}
         </div>
         <div className="tracks-container">
           {learningTracks.map((track, index) => (
             <span key={index} className="track-tag">
               {track}
+              {false && (
+                <button
+                  className="remove-track-button"
+                  onClick={() => {}}
+                >
+                  <X size={14} />
+                </button>
+              )}
             </span>
           ))}
         </div>
+        {showTrackSelector && (
+          <div className="track-selector">
+            {availableTracks
+              .filter(track => !learningTracks.includes(track.trackEn))
+              .map(track => (
+                <button
+                  key={track.id}
+                  className="track-option"
+                  onClick={() => {}}
+                >
+                  {track.trackEn}
+                </button>
+              ))}
+          </div>
+        )}
       </div>
 
-      {/* Learning Times Section */}
+      {/* Learning Times Section - Add toggles in edit mode */}
       <div className="card-section">
         <div className="section-header">
           <div className="section-icon"><Calendar size={20} /></div>
@@ -315,11 +246,14 @@ const UserCard: React.FC<UserCardProps> = ({ user, ...props }) => {
               </tr>
             </thead>
             <tbody>
-              {weekdays.map((day) => (
+              {['sunday', 'monday', 'tuesday', 'wednesday', 'thursday'].map((day) => (
                 <tr key={day}>
                   <td className="capitalize">{day}</td>
-                  {timeSlots.map((slot) => (
-                    <td key={slot} className="text-center">
+                  {['morning', 'afternoon', 'evening'].map((slot) => (
+                    <td 
+                      key={slot} 
+                      className="text-center"
+                    >
                       <div className={`time-indicator ${
                         learningTimes[day][slot] ? 'available' : 'unavailable'
                       }`}>
@@ -334,7 +268,7 @@ const UserCard: React.FC<UserCardProps> = ({ user, ...props }) => {
         </div>
       </div>
 
-      {/* Open Questions Section */}
+      {/* Only show Open Questions in view mode */}
       <div className="card-section">
         <div className="section-header">
           <div className="section-icon"><MessageCircle size={20} /></div>
@@ -366,11 +300,14 @@ const UserCard: React.FC<UserCardProps> = ({ user, ...props }) => {
           ))}
         </div>
       </div>
+
     </div>
   );
-};
+});
 
 // Example usage with sample data
-
+EditableLabelValue.displayName = 'EditableLabelValue';
+LabelValueSection.displayName = 'LabelValueSection';
+UserCard.displayName = 'UserCard';
 
 export default UserCard;

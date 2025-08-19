@@ -1,0 +1,7 @@
+{
+  "$schema": "https://dev.wix.com/wix-cli/schemas/dashboard-modal.json",
+  "id": "f7b6e1d3-c2fe-46bc-9d85-b8d169ecd888",
+  "title": "To Archive",
+  "width": 550,
+  "height": 600
+}

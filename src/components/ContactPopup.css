@@ -1,0 +1,81 @@
+.contact-popup {
+  background-color: white;
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+  width: 100%;
+  position: relative;
+}
+
+.contact-header {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 1.5rem;
+  padding-right: 2rem;
+}
+
+.contact-items {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.contact-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.contact-icon {
+  flex-shrink: 0;
+  color: #6b7280;
+}
+
+.contact-label {
+  flex: 1;
+  color: #374151;
+  font-weight: 500;
+}
+
+.contact-value-container {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.contact-value {
+  color: #1f2937;
+  font-family: monospace;
+}
+
+.copy-button {
+  padding: 0.25rem;
+  border:none;
+}
+
+.copy-button:hover {
+  background-color: #f3f4f6;
+}
+
+.copy-icon {
+  color: #9ca3af;
+}
+
+.copy-icon:hover {
+  color: #4b5563;
+}
+
+.check-icon {
+  color: #10b981;
+}
+
+.copy-feedback {
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.copy-feedback-text {
+  font-size: 0.875rem;
+  color: #059669;
+  font-weight: 500;
+}

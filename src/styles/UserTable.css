@@ -1,0 +1,140 @@
+.contact-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.add-user-button {
+  padding: 8px 20px;
+  background: #1976d2;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-weight: bold;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.add-user-button:hover {
+  background: #1565c0;
+}
+
+.icon-cell {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  min-height: 48px; /* Match table row height */
+}
+
+/* Add specific styles for action cells */
+.action-cell {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-start;
+  align-items: center;
+  padding: 0 16px;
+}
+
+/* Ensure table cells have proper height */
+td {
+  height: 48px;
+  vertical-align: middle;
+}
+
+.table-container {
+  max-width: 800px;
+  margin: 40px auto;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  padding: 24px;
+}
+
+.table-header {
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.search-input {
+  padding: 8px 12px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  width: 200px;
+}
+
+.results-count {
+  font-size: 14px;
+  color: #888;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th {
+  text-align: left;
+  padding: 10px 8px;
+  border-bottom: 2px solid #eee;
+  background: #fafafa;
+}
+
+.table td {
+  padding: 8px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.table-row {
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.clickable {
+  cursor: pointer;
+}
+
+.no-data {
+  text-align: center;
+  padding: 24px;
+}
+
+.pagination {
+  margin-top: 16px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.pagination-button {
+  padding: 6px 12px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  background: #fff;
+  cursor: pointer;
+  margin: 0 8px;
+}
+
+.pagination-button:disabled {
+  background: #eee;
+  cursor: not-allowed;
+}
+
+.pagination-text {
+  margin: 0 12px;
+}
+
+.icon {
+  cursor: pointer;
+  color: #666;
+  vertical-align: middle;
+}
+
+.icon-success {
+  color: green;
+}
+
+.icon-error {
+  color: red;
+}
