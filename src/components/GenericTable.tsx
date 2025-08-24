@@ -49,7 +49,6 @@ export const GenericTable: React.FC<GenericTableProps> = ({ columns, fetchData, 
   );
 
   useEffect(() => {
-    console.log("hello");
     setLoading(true);
     fetchData(search, page, pageSize)
       .then(res => {
@@ -57,7 +56,6 @@ export const GenericTable: React.FC<GenericTableProps> = ({ columns, fetchData, 
         setTotal(res.total);
       })
       .finally(() => setLoading(false));
-      console.log('Data fetched:', data);
   }, [search, page, pageSize, fetchData]);
 
   const totalPages = Math.ceil(total / pageSize);

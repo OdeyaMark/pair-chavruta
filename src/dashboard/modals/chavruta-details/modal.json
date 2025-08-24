@@ -1,0 +1,7 @@
+{
+  "$schema": "https://dev.wix.com/wix-cli/schemas/dashboard-modal.json",
+  "id": "c83c7139-5b30-4e82-be8f-6870568f6ee0",
+  "title": "chavruta details",
+  "width": 550,
+  "height": 600
+}

@@ -107,3 +107,81 @@ export const fetchUserContact = async (userId: string): Promise<{ email: string;
 };
 
 
+export default async function fetchChavrutasFromCMS(){
+  consola.info('Fetching CMS data...');
+  const results = await items.query('Import2').descending('DateOfCreate').ne('IsDeleted', true).include('fromIsraelId', 'fromWorldId').limit(1000).find();
+  return results.items;
+}
+
+
+// Define your track mapping based on your C# PrefferdTracks enum
+const trackMapping = {
+  0: "df6ce1e8-1839-4749-bd4f-495295d75657", // Tanya (Chassidic Thought)
+  1: "e9a52d6e-5510-4259-a157-c661e9ff95e9", // Talmud
+  2: "3e55135c-846d-4f7e-a39c-c8512cc62714", // Parsha (Weekly Parsha)
+  3: "c01b5f93-3797-473e-9eff-17bd7bddf736", // Prayer
+  4: "8fc9e767-d4bf-4093-ad17-bb366ca31adf", // PirkeiAvot
+  5: null, // NoPrefrence (no ID provided)
+  6: "788830c2-45f4-471d-aa0d-8c7412826562"  // IndependentLearning
+};
+
+
+
+export async function replaceTrackNumbersWithIds() {
+  try {
+    const collectionName = "Import2"; // Replace with your actual collection name
+    const trackNumberField = "track"; // Replace with your actual field name
+    const trackIdField = "track"; // Replace with your target field name
+    
+    // Query all items from the collection
+    const results = await items.query(collectionName).skip(50).limit(1000)
+      .find();
+    
+    const resItems = results.items;
+    console.log(`Found ${resItems.length} items to process`);
+    
+    // Process each item
+    const updatePromises = resItems.map(async (item) => {
+      const trackNumber:number = item[trackNumberField];
+      
+      if (trackNumber !== undefined && trackNumber !== null) {
+        const trackId = trackMapping[trackNumber];
+        
+        if (trackId !== undefined) {
+          // Update the item with the track ID (or null for NoPrefrence)
+          const updatedItem = {
+            ...item,
+            [trackIdField]: trackId
+          };
+          
+          // console.log(`Updating item ${item._id}: ${trackNames[trackNumber]} (${trackNumber}) -> ${trackId || 'null'}`);
+          return items.update(collectionName, updatedItem);
+        } else {
+          console.warn(`No mapping found for track number: ${trackNumber} in item ${item._id}`);
+          return Promise.resolve(null);
+        }
+      } else {
+        console.log(`Skipping item ${item._id}: no track number found`);
+        return Promise.resolve(null);
+      }
+    });
+    
+    // Wait for all updates to complete
+    const updateResults = await Promise.all(updatePromises);
+    const successfulUpdates = updateResults.filter(result => result !== null);
+    
+    console.log(`Successfully updated ${successfulUpdates.length} items`);
+    return {
+      success: true,
+      updatedCount: successfulUpdates.length,
+      totalCount: resItems.length
+    };
+    
+  } catch (error) {
+    console.error("Error updating track numbers:", error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
