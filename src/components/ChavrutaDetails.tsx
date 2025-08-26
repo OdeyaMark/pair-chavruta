@@ -1,12 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, MapPin, Phone, Mail, FileText } from 'lucide-react';
 import '../styles/ChavrutaDetails.css';
 
 interface Participant {
   fullName: string;
   email: string;
-  phone: string;
-  country: string;
+  tel?: string;  // Changed from phone to tel to match your data structure
+  country?: string;
+}
+
+interface ChavrutaDetailsProps {
+  israeliParticipant: Participant;
+  diasporaParticipant: Participant;
+  chavrutaId: string;
+  initialNote?: string; // Add this prop
+  onNoteChange?: (note: string) => Promise<void>;
 }
 
 interface ParticipantSectionProps {
@@ -51,7 +59,7 @@ const ParticipantSection: React.FC<ParticipantSectionProps> = ({
             Phone:
           </label>
           <div className="info-value">
-            {participant.phone || 'Not provided'}
+            {participant.tel || 'Not provided'}
           </div>
         </div>
 
@@ -69,22 +77,39 @@ const ParticipantSection: React.FC<ParticipantSectionProps> = ({
   );
 };
 
-const ParticipantSections: React.FC = () => {
-  const [israeliParticipant] = useState<Participant>({
-    fullName: 'John Doe',
-    email: 'john.doe@example.com',
-    phone: '+972-50-123-4567',
-    country: 'Israel'
-  });
+const ChavrutaDetails: React.FC<ChavrutaDetailsProps> = ({ 
+  israeliParticipant, 
+  diasporaParticipant,
+  chavrutaId,
+  initialNote = '', // Provide default value
+  onNoteChange 
+}) => {
+  const [note, setNote] = useState<string>(initialNote); // Initialize with passed note
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<string>('');
 
-  const [diasporaParticipant] = useState<Participant>({
-    fullName: 'Sarah Cohen',
-    email: 'sarah.cohen@example.com',
-    phone: '+1-555-123-4567',
-    country: 'United States'
-  });
+  // Add effect to update note when initialNote changes
+  useEffect(() => {
+    setNote(initialNote);
+  }, [initialNote]);
 
-  const [note, setNote] = useState<string>('');
+  const handleSave = async () => {
+    if (onNoteChange) {
+      setIsSaving(true);
+      setSaveMessage('');
+      try {
+        await onNoteChange(note);
+        setSaveMessage('Note saved successfully!');
+        // Clear message after 3 seconds
+        setTimeout(() => setSaveMessage(''), 3000);
+      } catch (error) {
+        console.error('Error saving note:', error);
+        setSaveMessage('Failed to save note. Please try again.');
+      } finally {
+        setIsSaving(false);
+      }
+    }
+  };
 
   return (
     <div className="chavruta-details-container">
@@ -121,28 +146,25 @@ const ParticipantSections: React.FC = () => {
             <div className="char-count">
               {note.length} characters
             </div>
+            {saveMessage && (
+              <div className={`save-message ${saveMessage.includes('Failed') ? 'error' : 'success'}`}>
+                {saveMessage}
+              </div>
+            )}
             <div className="button-group">
               <button
-                onClick={() => {
-                  setNote('');
-                }}
+                onClick={() => setNote('')}
                 className="button button-secondary"
+                disabled={isSaving}
               >
                 Clear Note
               </button>
               <button
-                onClick={() => {
-                  const data = {
-                    israeliParticipant,
-                    diasporaParticipant,
-                    note
-                  };
-                  console.log('Form data:', data);
-                  alert('Data saved! Check console for details.');
-                }}
+                onClick={handleSave}
                 className="button button-primary"
+                disabled={isSaving}
               >
-                Save
+                {isSaving ? 'Saving...' : 'Save'}
               </button>
             </div>
           </div>
@@ -152,4 +174,4 @@ const ParticipantSections: React.FC = () => {
   );
 };
 
-export default ParticipantSections;
+export default ChavrutaDetails;

@@ -185,3 +185,47 @@ export async function replaceTrackNumbersWithIds() {
     };
   }
 }
+
+// Base update function that fetches and updates
+export async function updateChavrutaBase(chavrutaId: string, updateFn: (chavruta: any) => any) {
+  try {
+    // Fetch current data
+    const result = await items.query('Import2')
+      .eq('_id', chavrutaId)
+      .find();
+    
+    const chavruta = result.items[0];
+    if (!chavruta) {
+      throw new Error(`Chavruta with ID ${chavrutaId} not found`);
+    }
+
+    // Apply updates and return
+    return await items.update('Import2', updateFn(chavruta));
+  } catch (error) {
+    console.error('Error updating chavruta:', error);
+    throw error;
+  }
+}
+
+// Specific update functions
+export async function updateChavrutaStatus(chavrutaId: string, status: number) {
+  return updateChavrutaBase(chavrutaId, (chavruta) => ({
+    ...chavruta,
+    status
+  }));
+}
+
+export async function updateChavrutaTrack(chavrutaId: string, track: string) {
+  return updateChavrutaBase(chavrutaId, (chavruta) => ({
+    ...chavruta,
+    track
+  }));
+}
+
+export async function updateChavrutaNote(chavrutaId: string, note: string) {
+  return updateChavrutaBase(chavrutaId, (chavruta) => ({
+    ...chavruta,
+    note
+  }));
+}
+

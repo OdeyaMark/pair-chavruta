@@ -73,6 +73,7 @@ td {
 .table {
   width: 100%;
   border-collapse: collapse;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
 }
 
 .table th {
@@ -80,11 +81,16 @@ td {
   padding: 10px 8px;
   border-bottom: 2px solid #eee;
   background: #fafafa;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .table td {
   padding: 8px;
   border-bottom: 1px solid #f0f0f0;
+  font-size: 0.95rem;
 }
 
 .table-row {
@@ -127,7 +133,6 @@ td {
 
 .icon {
   cursor: pointer;
-  color: #666;
   vertical-align: middle;
 }
 
@@ -137,4 +142,57 @@ td {
 
 .icon-error {
   color: red;
+}
+
+.action-icon {
+  color: #2563eb;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.action-icon:hover {
+  color: #1d4ed8;
+}
+
+.icon-cell {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  padding: 8px;
+}
+
+.editable-cell {
+  position: relative;
+  cursor: pointer;
+}
+
+.editable-value {
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.editable-value:hover {
+  background-color: #f3f4f6;
+}
+
+.dropdown-content {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 1000;
+  min-width: 160px;
+  background-color: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.dropdown-item {
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.dropdown-item:hover {
+  background-color: #f3f4f6;
 }

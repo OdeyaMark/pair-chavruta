@@ -4,8 +4,23 @@ import { Mail, Trash2, Eye } from 'lucide-react';
 import '@wix/design-system/styles.global.css';
 import { GenericTable, TableColumn } from '../../../components/GenericTable';
 import { dashboard } from '@wix/dashboard';
-import fetchChavrutasFromCMS from '../../../data/cmsData';
+import fetchChavrutasFromCMS, { getTracks, updateChavrutaBase } from '../../../data/cmsData';
 
+
+export enum PairStatus {
+  Default = 0,
+  Standby = 1,
+  Active = 2,
+  Learning = 3
+}
+
+// Convert numbers to string labels
+export const PairStatusLabels: Record<PairStatus, string> = {
+  [PairStatus.Default]: 'Default',
+  [PairStatus.Standby]: 'Standby',
+  [PairStatus.Active]: 'Active',
+  [PairStatus.Learning]: 'Learning'
+};
 
 interface ChavrutaRow {
   id: string;
@@ -23,6 +38,7 @@ interface ChavrutaRow {
     israeli: Record<string, any>;
     diaspora: Record<string, any>;
   };
+  note?: string;
 }
 
 const DashboardPage: FC = () => {
@@ -31,6 +47,7 @@ const DashboardPage: FC = () => {
   const [selectedStatus, setSelectedStatus] = useState<string>('');
   const [allChavrutas, setAllChavrutas] = useState<ChavrutaRow[]>([]);
   const [initialFetch, setInitialFetch] = useState(true);
+  const [tracks, setTracks] = useState<Array<{ id: string; trackEn: string }>>([]);
 
   // Fetch data once when component mounts
   useEffect(() => {
@@ -38,6 +55,14 @@ const DashboardPage: FC = () => {
       fetchInitialData();
     }
   }, [initialFetch]);
+
+  useEffect(() => {
+    const loadTracks = async () => {
+      const tracksData = await getTracks();
+      setTracks(tracksData);
+    };
+    loadTracks();
+  }, []);
 
   const fetchInitialData = async () => {
     try {
@@ -51,8 +76,10 @@ const DashboardPage: FC = () => {
           month: 'short',
           day: 'numeric'
         }),
-        track: item.track,
-        status: item.status,
+        // Map track ID to track name
+        note: item.note,
+        track: tracks.find(t => t.id === item.track)?.trackEn || 'Unknown Track',
+        status: PairStatusLabels[Number(item.status) as PairStatus] || PairStatusLabels[PairStatus.Default],
         matchDate: item.dateOfCreate,
         details: <div className="icon-cell"><Eye size={20} className="action-icon" /></div>,
         mail: <div className="icon-cell"><Mail size={20} className="action-icon" /></div>,
@@ -69,6 +96,13 @@ const DashboardPage: FC = () => {
     }
   };
 
+  // Update useEffect for initial fetch to depend on tracks
+  useEffect(() => {
+    if (initialFetch && tracks.length > 0) {
+      fetchInitialData();
+    }
+  }, [initialFetch, tracks]);
+
   // Extract unique values for filters
   const filters = useMemo(() => {
     const years = Array.from(new Set(allChavrutas.map(item => 
@@ -76,12 +110,19 @@ const DashboardPage: FC = () => {
     ))).sort();
 
     const tracks = Array.from(new Set(allChavrutas.map(item => item.track))).sort();
-    const statuses = Array.from(new Set(allChavrutas.map(item => item.status))).sort();
+    
+    // Map status enum values to their labels
+    const statuses = Object.values(PairStatus)
+      .filter(status => typeof status === 'number')
+      .map(status => ({
+        id: PairStatusLabels[status as PairStatus],
+        value: PairStatusLabels[status as PairStatus]
+      }));
 
     return {
       years: years.map(year => ({ id: year, value: year })),
       tracks: tracks.map(track => ({ id: track, value: track })),
-      statuses: statuses.map(status => ({ id: status, value: status }))
+      statuses
     };
   }, [allChavrutas]);
 
@@ -94,6 +135,64 @@ const DashboardPage: FC = () => {
     console.log('Delete chavruta match:', id);
   };
 
+  const handleStatusChange = async (rowId: string, newStatus: string) => {
+    try {
+      const statusEntry = Object.entries(PairStatusLabels).find(([_, label]) => label === newStatus);
+      if (!statusEntry) return;
+      
+      const numericStatus = Number(statusEntry[0]);
+      
+      await updateChavrutaBase(rowId, (chavruta) => ({
+        ...chavruta,
+        status: numericStatus
+      }));
+      
+      // Update local state
+      setAllChavrutas(prev => prev.map(chavruta => {
+        if (chavruta.id === rowId) {
+          return {
+            ...chavruta,
+            status: newStatus
+          };
+        }
+        return chavruta;
+      }));
+    } catch (error) {
+      console.error('Error updating status:', error);
+    }
+  };
+
+  // Add handleTrackChange function after handleStatusChange
+  const handleTrackChange = async (rowId: string, newTrack: string) => {
+    try {
+      const trackId = tracks.find(t => t.trackEn === newTrack)?.id;
+      if (!trackId) {
+        console.error('Could not find track ID for track:', newTrack);
+        return;
+      }
+      
+      await updateChavrutaBase(rowId, (chavruta) => ({
+        ...chavruta,
+        track: trackId
+      }));
+      
+      // Update local state
+      setAllChavrutas(prev => prev.map(chavruta => {
+        if (chavruta.id === rowId) {
+          return {
+            ...chavruta,
+            track: newTrack
+          };
+        }
+        return chavruta;
+      }));
+    } catch (error) {
+      console.error('Error updating track:', error);
+    }
+  };
+      
+
+  // Update the handleDetailsClick function
   const handleDetailsClick = (id: string) => {
     const chavruta = allChavrutas.find(item => item.id === id);
     if (chavruta) {
@@ -101,22 +200,47 @@ const DashboardPage: FC = () => {
         modalId: "c83c7139-5b30-4e82-be8f-6870568f6ee0",
         params: { 
           israeliParticipant: chavruta.participantData.israeli,
-          diasporaParticipant: chavruta.participantData.diaspora
+          diasporaParticipant: chavruta.participantData.diaspora,
+          chavrutaId: id,
+          initialNote: chavruta.note // Pass the note
         }
       });
     }
   };
 
+  // Update the columns definition
   const columns: TableColumn[] = [
     { key: "israeliParticipant", label: "Israeli Participant" },
     { key: "diasporaParticipant", label: "Diaspora Participant" },
     { key: "creationDate", label: "Creation Date" },
-    { key: "track", label: "Track" },
-    { key: "status", label: "Status" },
+    { 
+      key: "track", 
+      label: "Track",
+      editable: {
+        options: tracks.map(track => ({
+          value: track.trackEn,
+          label: track.trackEn
+        })),
+        onSelect: handleTrackChange
+      }
+    },
+    { 
+      key: "status", 
+      label: "Status",
+      editable: {
+        options: Object.values(PairStatus)
+          .filter(status => typeof status === 'number')
+          .map(status => ({
+            value: PairStatusLabels[status as PairStatus],
+            label: PairStatusLabels[status as PairStatus]
+          })),
+        onSelect: handleStatusChange
+      }
+    },
     { 
       key: "details",
       label: "",
-      onClick: (id: string) => handleDetailsClick(id)  // Remove row parameter
+      onClick: (id: string) => handleDetailsClick(id)
     },
     { 
       key: "mail",
@@ -152,9 +276,9 @@ const DashboardPage: FC = () => {
     // Filter by search
     if (search) {
       filteredData = filteredData.filter(c => 
-        c.israeliParticipant.toLowerCase().includes(search.toLowerCase()) ||
-        c.diasporaParticipant.toLowerCase().includes(search.toLowerCase()) ||
-        c.track.toLowerCase().includes(search.toLowerCase())
+        c?.israeliParticipant?.toLowerCase().includes(search.toLowerCase()) ||
+        c?.diasporaParticipant?.toLowerCase().includes(search.toLowerCase()) ||
+        c?.track?.toLowerCase().includes(search.toLowerCase())
       );
     }
 

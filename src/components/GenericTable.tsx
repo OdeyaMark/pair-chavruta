@@ -6,7 +6,11 @@ import '../styles/UserTable.css';
 export interface TableColumn {
   key: string;
   label: string;
-  onClick?: (id: string) => void; // Optional click handler for actions
+  onClick?: (id: string) => void;
+  editable?: {
+    options: Array<{ value: string; label: string }>;
+    onSelect: (rowId: string, value: string) => void;
+  };
 }
 
 const ICON_MAP: Record<string, React.ComponentType<any>> = {
@@ -33,12 +37,23 @@ export interface GenericTableProps {
 
 const DEFAULT_PAGE_SIZE = 10;
 
+interface DropdownState {
+  isOpen: boolean;
+  rowId: string | null;
+  columnKey: string | null;
+}
+
 export const GenericTable: React.FC<GenericTableProps> = ({ columns, fetchData, pageSize = DEFAULT_PAGE_SIZE }) => {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [data, setData] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [dropdown, setDropdown] = useState<DropdownState>({
+    isOpen: false,
+    rowId: null,
+    columnKey: null
+  });
 
   const debouncedSearch = useCallback(
     debounce((value: string) => {
@@ -58,9 +73,60 @@ export const GenericTable: React.FC<GenericTableProps> = ({ columns, fetchData, 
       .finally(() => setLoading(false));
   }, [search, page, pageSize, fetchData]);
 
-  const totalPages = Math.ceil(total / pageSize);
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdown.isOpen && !(event.target as Element).closest('.dropdown-content')) {
+        setDropdown({ isOpen: false, rowId: null, columnKey: null });
+      }
+    };
 
-  const renderCellContent = (columnKey: string, value: any) => {
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [dropdown.isOpen]);
+
+  const renderDropdown = (columnKey: string, rowId: string, options: Array<{ value: string; label: string }>, onSelect: (rowId: string, value: string) => void) => {
+    if (dropdown.isOpen && dropdown.rowId === rowId && dropdown.columnKey === columnKey) {
+      return (
+        <div className="dropdown-content">
+          {options.map((option) => (
+            <div
+              key={option.value}
+              className="dropdown-item"
+              onClick={() => {
+                onSelect(rowId, option.value);
+                setDropdown({ isOpen: false, rowId: null, columnKey: null });
+              }}
+            >
+              {option.label}
+            </div>
+          ))}
+        </div>
+      );
+    }
+    return null;
+  };
+
+  const renderCellContent = (columnKey: string, value: any, row: any) => {
+    const column = columns.find(col => col.key === columnKey);
+
+    if (column?.editable) {
+      return (
+        <div className="editable-cell">
+          <div
+            onClick={() => setDropdown({
+              isOpen: true,
+              rowId: row.id,
+              columnKey: columnKey
+            })}
+            className="editable-value"
+          >
+            {value}
+          </div>
+          {renderDropdown(columnKey, row.id, column.editable.options, column.editable.onSelect)}
+        </div>
+      );
+    }
+
     if (ICON_MAP[columnKey]) {
       const IconComponent = ICON_MAP[columnKey];
       return <IconComponent size={18} className="icon" />;
@@ -76,6 +142,8 @@ export const GenericTable: React.FC<GenericTableProps> = ({ columns, fetchData, 
     }
     return value;
   };
+
+  const totalPages = Math.ceil(total / pageSize);
 
   return (
     <div className="table-container">
@@ -108,10 +176,10 @@ export const GenericTable: React.FC<GenericTableProps> = ({ columns, fetchData, 
                 {columns.map(col => (
                   <td
                     key={col.key}
-                    onClick={() => (col.onClick || (() => {}))(row.id)}
-                    className={col.onClick ? 'clickable' : ''}
+                    onClick={() => (!col.editable && col.onClick) ? col.onClick(row.id) : undefined}
+                    className={col.onClick || col.editable ? 'clickable' : ''}
                   >
-                    {renderCellContent(col.key, row[col.key])}
+                    {renderCellContent(col.key, row[col.key], row)}
                   </td>
                 ))}
               </tr>
