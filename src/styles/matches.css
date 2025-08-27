@@ -1,0 +1,283 @@
+/* Dashboard Container */
+.dashboard-container {
+  min-height: 100vh;
+  background-color: #f9fafb;
+  padding: 1.5rem;
+}
+
+.dashboard-content {
+  max-width: 112rem;
+  margin: 0 auto;
+}
+
+/* Dashboard Header */
+.dashboard-header {
+  margin-bottom: 2rem;
+}
+
+.dashboard-title {
+  font-size: 1.875rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
+}
+
+.dashboard-subtitle {
+  color: #4b5563;
+  margin: 0.5rem 0 0 0;
+}
+
+/* Dashboard Grid */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+@media (min-width: 1024px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* Section Headers */
+.section-header {
+  margin-bottom: 0;
+}
+
+.section-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #162d3d;
+  margin: 0;
+  padding: 0;
+}
+
+.section-icon {
+  height: 1.25rem;
+  width: 1.25rem;
+  margin-right: 0.5rem;
+}
+
+.section-count {
+  margin-left: 0.5rem;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+/* Table Styles */
+.table-container {
+margin-top: 0;
+  background-color: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  border: 1px solid #e5e7eb;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+}
+
+.data-table {
+  min-width: 100%;
+  border-collapse: collapse;
+}
+
+.table-header {
+  background-color: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.table-header-cell {
+  padding: 0.75rem 1.5rem;
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.table-body {
+  background-color: white;
+}
+
+.table-row {
+  cursor: pointer;
+  transition: background-color 0.15s ease-in-out;
+}
+
+.table-row:hover {
+  background-color: #f9fafb;
+}
+
+.table-row:not(:last-child) {
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.selected-row {
+  background-color: #eff6ff !important;
+  border-left: 4px solid #3b82f6;
+}
+
+.table-cell {
+  padding: 1rem 1.5rem;
+  white-space: nowrap;
+}
+
+/* Pairs Table Special Styling */
+.pairs-table {
+  border-left: 4px solid #3b82f6;
+}
+
+/* User Cell Styles */
+.user-cell {
+  display: flex;
+  align-items: center;
+}
+
+.user-avatar {
+  flex-shrink: 0;
+  height: 2rem;
+  width: 2rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 0.75rem;
+}
+
+.user-avatar-blue {
+  background-color: #dbeafe;
+}
+
+.user-avatar-green {
+  background-color: #dcfce7;
+}
+
+.avatar-icon {
+  height: 1rem;
+  width: 1rem;
+}
+
+.user-avatar-blue .avatar-icon {
+  color: #2563eb;
+}
+
+.user-avatar-green .avatar-icon {
+  color: #16a34a;
+}
+
+.user-name {
+  font-weight: 500;
+  color: #111827;
+}
+
+/* Status Badge Styles */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.625rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.status-available {
+  background-color: #dcfce7;
+  color: #166534;
+}
+
+.status-paired {
+  background-color: #dbeafe;
+  color: #1d4ed8;
+}
+
+.status-offline {
+  background-color: #f3f4f6;
+  color: #374151;
+}
+
+/* Match Button */
+.match-button {
+  background-color: #14b8a6;
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.15s ease-in-out;
+}
+
+.match-button:hover {
+  background-color: #0f766e;
+}
+
+/* Timezone Text */
+.timezone-text {
+  color: #4b5563;
+}
+
+.timezone-empty {
+  color: #9ca3af;
+}
+
+/* Empty State */
+.empty-state {
+  background-color: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  border: 1px solid #e5e7eb;
+  padding: 3rem;
+  text-align: center;
+}
+
+.empty-state-icon {
+  height: 3rem;
+  width: 3rem;
+  color: #d1d5db;
+  margin: 0 auto 1rem auto;
+}
+
+.empty-state-text {
+  color: #6b7280;
+  font-size: 1.125rem;
+  margin: 0;
+}
+
+/* Selected User Info */
+.selected-user-info {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background-color: #eff6ff;
+  border-radius: 0.5rem;
+  border-left: 4px solid #3b82f6;
+}
+
+.selected-user-text {
+  color: #1e40af;
+  margin: 0;
+}
+
+.selected-user-status {
+  margin-left: 1rem;
+}
+
+/* Icon Cell Styles */
+.icon-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.action-icon {
+  color: #4a90e2;
+  transition: color 0.2s;
+}
+
+.action-icon:hover {
+  color: #357abd;
+}

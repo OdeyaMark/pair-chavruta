@@ -9,7 +9,7 @@ import { items } from '@wix/data';
 export async function fetchCMSData() {
   try {
   consola.info('Fetching CMS data...');
-  const results = await items.query('regFormEn').fields("fullName", "country", "havrutaFound", "_createdDate", "_id").limit(1000).find();
+  const results = await items.query('regFormEn').fields("fullName", "country", "havrutaFound", "_createdDate", "_id", "prefTra").limit(1000).find();
   return results.items;
   } catch (error) {
   consola.error('Error fetching CMS data:', error);

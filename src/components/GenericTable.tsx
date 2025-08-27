@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Pencil, Trash2, Eye, Settings, Plus, X, Check, Contact2, Archive, StickyNote} from "lucide-react";
+import { Pencil, Trash2, Eye, Settings, Plus, X, Check, Contact2, Archive, StickyNote, Handshake} from "lucide-react";
 import debounce from 'lodash/debounce';
 import '../styles/UserTable.css';
 
@@ -22,6 +22,7 @@ const ICON_MAP: Record<string, React.ComponentType<any>> = {
   contactDetails: Contact2,
   archive: Archive,
   notes: StickyNote,
+  pair: Handshake,
 
   // Add more mappings as needed
 };
@@ -33,6 +34,7 @@ export interface GenericTableProps {
     total: number;
   }>;
   pageSize?: number;
+  onRowClick?: (id: string) => void; // Add this prop
 }
 
 const DEFAULT_PAGE_SIZE = 10;
@@ -43,7 +45,12 @@ interface DropdownState {
   columnKey: string | null;
 }
 
-export const GenericTable: React.FC<GenericTableProps> = ({ columns, fetchData, pageSize = DEFAULT_PAGE_SIZE }) => {
+export const GenericTable: React.FC<GenericTableProps> = ({ 
+  columns, 
+  fetchData, 
+  pageSize = DEFAULT_PAGE_SIZE,
+  onRowClick 
+}) => {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [data, setData] = useState<any[]>([]);
@@ -172,12 +179,22 @@ export const GenericTable: React.FC<GenericTableProps> = ({ columns, fetchData, 
             <tr><td colSpan={columns.length} className="no-data">No data found.</td></tr>
           ) : (
             data.map((row, idx) => (
-              <tr key={idx} className="table-row">
+              <tr 
+                key={idx} 
+                className={`table-row ${onRowClick ? 'clickable-row' : ''}`}
+                onClick={() => onRowClick && onRowClick(row.id)}
+              >
                 {columns.map(col => (
                   <td
                     key={col.key}
-                    onClick={() => (!col.editable && col.onClick) ? col.onClick(row.id) : undefined}
-                    className={col.onClick || col.editable ? 'clickable' : ''}
+                    onClick={(e) => {
+                      // Only stop propagation if this is a column with its own click handler
+                      if (col.onClick) {
+                        e.stopPropagation();
+                        col.onClick(row.id);
+                      }
+                    }}
+                    className={col.onClick ? 'clickable' : ''}
                   >
                     {renderCellContent(col.key, row[col.key], row)}
                   </td>
