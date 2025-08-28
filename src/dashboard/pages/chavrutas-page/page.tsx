@@ -4,23 +4,10 @@ import { Mail, Trash2, Eye } from 'lucide-react';
 import '@wix/design-system/styles.global.css';
 import { GenericTable, TableColumn } from '../../../components/GenericTable';
 import { dashboard } from '@wix/dashboard';
-import fetchChavrutasFromCMS, { getTracks, updateChavrutaBase } from '../../../data/cmsData';
+import {fetchChavrutasFromCMS,  updateChavrutaBase } from '../../../data/cmsData';
+import { PairStatus, PairStatusLabels } from '../../../constants/status';
+import { PreferredTracks, PreferredTracksInfo } from '../../../constants/tracks';
 
-
-export enum PairStatus {
-  Default = 0,
-  Standby = 1,
-  Active = 2,
-  Learning = 3
-}
-
-// Convert numbers to string labels
-export const PairStatusLabels: Record<PairStatus, string> = {
-  [PairStatus.Default]: 'Default',
-  [PairStatus.Standby]: 'Standby',
-  [PairStatus.Active]: 'Active',
-  [PairStatus.Learning]: 'Learning'
-};
 
 interface ChavrutaRow {
   id: string;
@@ -47,7 +34,6 @@ const DashboardPage: FC = () => {
   const [selectedStatus, setSelectedStatus] = useState<string>('');
   const [allChavrutas, setAllChavrutas] = useState<ChavrutaRow[]>([]);
   const [initialFetch, setInitialFetch] = useState(true);
-  const [tracks, setTracks] = useState<Array<{ id: string; trackEn: string }>>([]);
 
   // Fetch data once when component mounts
   useEffect(() => {
@@ -55,14 +41,6 @@ const DashboardPage: FC = () => {
       fetchInitialData();
     }
   }, [initialFetch]);
-
-  useEffect(() => {
-    const loadTracks = async () => {
-      const tracksData = await getTracks();
-      setTracks(tracksData);
-    };
-    loadTracks();
-  }, []);
 
   const fetchInitialData = async () => {
     try {
@@ -76,9 +54,9 @@ const DashboardPage: FC = () => {
           month: 'short',
           day: 'numeric'
         }),
-        // Map track ID to track name
+        // Map track ID to track name using PreferredTracksInfo
+        track: Object.values(PreferredTracksInfo).find(t => t.id === item.track)?.trackEn || 'Unknown Track',
         note: item.note,
-        track: tracks.find(t => t.id === item.track)?.trackEn || 'Unknown Track',
         status: PairStatusLabels[Number(item.status) as PairStatus] || PairStatusLabels[PairStatus.Default],
         matchDate: item.dateOfCreate,
         details: <div className="icon-cell"><Eye size={20} className="action-icon" /></div>,
@@ -98,10 +76,10 @@ const DashboardPage: FC = () => {
 
   // Update useEffect for initial fetch to depend on tracks
   useEffect(() => {
-    if (initialFetch && tracks.length > 0) {
+    if (initialFetch) {
       fetchInitialData();
     }
-  }, [initialFetch, tracks]);
+  }, [initialFetch]);
 
   // Extract unique values for filters
   const filters = useMemo(() => {
@@ -165,7 +143,8 @@ const DashboardPage: FC = () => {
   // Add handleTrackChange function after handleStatusChange
   const handleTrackChange = async (rowId: string, newTrack: string) => {
     try {
-      const trackId = tracks.find(t => t.trackEn === newTrack)?.id;
+      // Find track ID using PreferredTracksInfo
+      const trackId = Object.values(PreferredTracksInfo).find(t => t.trackEn === newTrack)?.id;
       if (!trackId) {
         console.error('Could not find track ID for track:', newTrack);
         return;
@@ -217,10 +196,12 @@ const DashboardPage: FC = () => {
       key: "track", 
       label: "Track",
       editable: {
-        options: tracks.map(track => ({
-          value: track.trackEn,
-          label: track.trackEn
-        })),
+        options: Object.values(PreferredTracksInfo)
+          .filter(track => track.id) // Only include tracks with IDs
+          .map(track => ({
+            value: track.trackEn,
+            label: track.trackEn
+          })),
         onSelect: handleTrackChange
       }
     },

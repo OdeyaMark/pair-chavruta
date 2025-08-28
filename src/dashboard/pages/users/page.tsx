@@ -1,23 +1,17 @@
 import React, { useEffect, type FC, useState } from 'react';
-import { Page, WixDesignSystemProvider } from '@wix/design-system';
+import { Page, WixDesignSystemProvider, Box, Text, ToggleSwitch } from '@wix/design-system';
 import Navbar from "../../../components/Navbar";
 import { GenericTable, TableColumn } from "../../../components/GenericTable";
 import '@wix/design-system/styles.global.css';
-import { fetchCMSData, fetchUserContact } from '../../../data/cmsData';
+import { fetchCMSData, fetchUserContact, fetchArchivedUsers } from '../../../data/cmsData';
 import { dashboard } from '@wix/dashboard';
 import ContactPopup from '../../../components/contactPopup';
 // In your table component when clicking contact icon
-const handleContactClick = (userId: string) => {
-  dashboard.openModal({
-    modalId: '45308f7c-1309-42a3-8a0b-00611cab9ebe',
-    params: { 
-      userId: userId,
-      contactMode: true 
-    }
-  });
-};
+
 
 const DashboardPage: FC = () => {
+  // Add new state for toggle
+  const [showArchived, setShowArchived] = useState(false);
   const [contactPopup, setContactPopup] = useState<{
     isOpen: boolean;
     email: string;
@@ -29,15 +23,15 @@ const DashboardPage: FC = () => {
   });
 
   // In your table component when clicking contact icon
-const handleContactClick = (userId: string) => {
-  dashboard.openModal({
-    modalId: '45308f7c-1309-42a3-8a0b-00611cab9ebe',
-    params: { 
-      userId: userId,
-      contactMode: true 
-    }
-  });
-};
+  const handleContactClick = (userId: string) => {
+    dashboard.openModal({
+      modalId: '45308f7c-1309-42a3-8a0b-00611cab9ebe',
+      params: { 
+        userId: userId,
+        contactMode: true 
+      }
+    });
+  };
 
   const columns: TableColumn[] = [
     { key: "details", label: "Details", onClick: (id:string) => {
@@ -56,8 +50,9 @@ const handleContactClick = (userId: string) => {
   ];
 
   const fetchUsers = async (search: string, page: number, pageSize: number) => {
-    // Fetch data from Wix CMS
-    const cmsData = await fetchCMSData();
+    // Fetch data based on toggle state
+    const cmsData = await (showArchived ? fetchArchivedUsers() : fetchCMSData());
+    
     // Map CMS data to table format
     let users = Array.isArray(cmsData) ? cmsData.map((item: any) => ({
       // Only map fields that sound like the column names
@@ -113,16 +108,36 @@ const handleContactClick = (userId: string) => {
       <Page>
         <Page.Content>
           <div>
-            <Navbar />
             <div style={{ maxWidth: 900, margin: "32px auto", padding: "0 16px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-                <h2 style={{ margin: 0 }}>Users</h2>
-                <button
-                  onClick={handleAddUser}
-                  style={{ padding: "8px 20px", background: "#1976d2", color: "#fff", border: "none", borderRadius: 4, fontWeight: "bold", cursor: "pointer", fontSize: 16 }}
-                >
-                  Add User
-                </button>
+              <div style={{ marginBottom: 24 }}>
+                <Box direction="vertical" align="left">
+                  <Box marginBottom="16px">
+                    <h2 style={{ margin: 0 }}>Users</h2>
+                  </Box>
+                  <Box direction="horizontal" verticalAlign="middle">
+                    <Text size="small" weight="bold" marginRight="12px">
+                      Active Users
+                    </Text>
+                    <Box marginLeft="12px" marginRight="12px">
+                      <ToggleSwitch
+                        checked={showArchived}
+                        onChange={() => setShowArchived(prev => !prev)}
+                        size="small"
+                      />
+                    </Box>
+                    <Text size="small" weight="bold" marginLeft="12px">
+                      Archived Users
+                    </Text>
+                  </Box>
+                </Box>
+                <Box marginTop="24px" align="right">
+                  <button
+                    onClick={handleAddUser}
+                    style={{ padding: "8px 20px", background: "#1976d2", color: "#fff", border: "none", borderRadius: 4, fontWeight: "bold", cursor: "pointer", fontSize: 16 }}
+                  >
+                    Add User
+                  </button>
+                </Box>
               </div>
               <GenericTable columns={columns} fetchData={fetchUsers} />
               {contactPopup.isOpen && (

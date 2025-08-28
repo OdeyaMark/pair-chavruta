@@ -47,47 +47,7 @@ export async function fetchUserById(userId: string) {
   }
 }
 
-interface Track {
-  id: string;
-  trackEn: string;
-}
 
-// Function to fetch tracks and log them - run this during development to get the data
-export async function fetchTracks() {
-  try {
-    consola.info('Fetching tracks data...');
-    const results = await items.query('tracks')
-      .fields("_id", "trackEn")
-      .find();
-    
-    const tracks: Track[] = results.items.map(item => ({
-      id: item._id,
-      trackEn: item.trackEn
-    }));
-
-    // Log the tracks data to copy into the static file
-    consola.success('Tracks data:', JSON.stringify({ tracks }, null, 2));
-    return tracks;
-  } catch (error) {
-    consola.error('Error fetching tracks:', error);
-    return [];
-  }
-}
-
-// Import the static tracks data
-import tracksData from './tracks.json';
-
-// Function to get tracks, fetching from CMS if static data is empty
-export async function getTracks(): Promise<Track[]> {
-  // Check if we have data in the static file
-  if (!tracksData.tracks || tracksData.tracks.length === 0) {
-    consola.info('No tracks found in static file, fetching from CMS...');
-    return await fetchTracks();
-  }
-
-  consola.info('Using tracks from static file');
-  return tracksData.tracks;
-}
 
 export const fetchUserContact = async (userId: string): Promise<{ email: string; tel: string }> => {
   try {
@@ -107,12 +67,15 @@ export const fetchUserContact = async (userId: string): Promise<{ email: string;
 };
 
 
-export default async function fetchChavrutasFromCMS(){
-  consola.info('Fetching CMS data...');
+export async function fetchChavrutasFromCMS(){
   const results = await items.query('Import2').descending('DateOfCreate').ne('IsDeleted', true).include('fromIsraelId', 'fromWorldId').limit(1000).find();
   return results.items;
 }
 
+export async function fetchPendingChavrutasFromCMS(){
+  const results = await items.query('Import2').descending('DateOfCreate').ne('IsDeleted', true).eq('status', 1).include('fromIsraelId', 'fromWorldId').limit(1000).find();
+  return results.items;
+}
 
 // Define your track mapping based on your C# PrefferdTracks enum
 const trackMapping = {
@@ -227,5 +190,17 @@ export async function updateChavrutaNote(chavrutaId: string, note: string) {
     ...chavruta,
     note
   }));
+}
+
+export async function fetchArchivedUsers() {
+  try {
+    const result = await items.query('regFormEn')
+      .eq('IsInArchive', true)
+      .find();
+    return result.items;
+  } catch (error) {
+    console.error('Error fetching archived users:', error);
+    throw error;
+  }
 }
 

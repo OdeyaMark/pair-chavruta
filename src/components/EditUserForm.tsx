@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import debounce from 'lodash/debounce';
 import { Globe, BookOpen, Calendar, User, Plus } from 'lucide-react';
-import { getTracks } from '../data/cmsData';
+import { PreferredTracksInfo } from '../constants/tracks';
 import './UserCard.css';
+import { set } from 'lodash';
 
 interface EditUserFormProps {
   user: Record<string, any>;
@@ -78,16 +79,7 @@ const EditUserForm: React.FC<EditUserFormProps> = ({ user, onChange }) => {
     }), {} as Record<Weekday, string[]>)
   });
 
-  const [availableTracks, setAvailableTracks] = useState<{ id: string; trackEn: string; }[]>([]);
   const [showTrackSelector, setShowTrackSelector] = useState(false);
-
-  useEffect(() => {
-    const loadTracks = async () => {
-      const tracks = await getTracks();
-      setAvailableTracks(tracks);
-    };
-    loadTracks();
-  }, []);
 
   const handleInputChange = (field: keyof FormData, value: any) => {
     setFormData(prev => ({
@@ -151,13 +143,13 @@ const EditUserForm: React.FC<EditUserFormProps> = ({ user, onChange }) => {
   }) => (
     <div className="tracks-container">
       {tracks.map((trackId) => {
-        const track = availableTracks.find(t => t.id === trackId);
+        const track = Object.values(PreferredTracksInfo).find(t => t.id === trackId);
         return track ? (
           <span key={track.id} className="track-tag">
             {track.trackEn}
             <button
               className="remove-track-button"
-              onClick={() => onRemove(track.id)}
+              onClick={() => onRemove(track.id!)}
             >
               ×
             </button>
@@ -319,14 +311,14 @@ const EditUserForm: React.FC<EditUserFormProps> = ({ user, onChange }) => {
         }} />
         {showTrackSelector && (
           <div className="track-selector">
-            {availableTracks
-              .filter(track => !formData.learningTracks.includes(track.id))
+            {Object.values(PreferredTracksInfo)
+              .filter(track => track.id && !formData.learningTracks.includes(track.id))
               .map(track => (
                 <button
                   key={track.id}
                   className="track-option"
                   onClick={() => {
-                    const newTracks = [...formData.learningTracks, track.id];
+                    const newTracks = [...formData.learningTracks, track.id!];
                     setFormData(prev => ({
                       ...prev,
                       learningTracks: newTracks,

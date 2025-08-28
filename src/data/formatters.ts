@@ -1,4 +1,5 @@
-import { getTracks } from './cmsData';
+import { PreferredTracksInfo } from "../constants/tracks";
+
 
 export interface LabelValuePair {
   label: string;
@@ -25,10 +26,15 @@ export interface LearningTimes {
   thursday: LearningTime;
 }
 
+interface TrackInfo {
+    id: string;
+    trackEn: string;
+  }
+
 export interface ChavrutaCardProps {
   chavrutaPreference: LabelValuePair[];
   extraDetails: LabelValuePair[];
-  learningTracks: string[];
+  learningTracks: TrackInfo[];
   languages: LabelValuePair[];
   learningTimes: LearningTimes;
   openQuestions: Question[];
@@ -42,45 +48,9 @@ const checkTimeSlot = (dayValue: any, slot: string) => {
   return dayValue.includes(slot) || false;
 };
 
-const formatName = (rawUser: Record<string, any>) => {
-  if (rawUser.fullName?.trim()) return rawUser.fullName;
-  const fName = rawUser.fName?.trim() || '';
-  const lName = rawUser.lName?.trim() || '';
-  return fName || lName ? `${fName} ${lName}`.trim() : 'Not specified';
-};
-
-const formatLocation = (rawUser: Record<string, any>) => {
-  const city = rawUser.city?.trim() || '';
-  const country = rawUser.country?.trim() || '';
-  if (!city && !country) return 'Not specified';
-  if (!city) return country;
-  if (!country) return city;
-  return `${city}, ${country}`;
-};
-
-const formatField = (value: any) => {
-  if (!value) return 'Not specified';
-  const strValue = String(value).trim();
-  return strValue || 'Not specified';
-};
-
-const formatArrayResponse = (arr: any[] | null | undefined) => {
-  if (!Array.isArray(arr) || arr.length === 0) return 'None provided';
-  return arr
-    .filter(item => item && String(item).trim())
-    .join('\n') || 'None provided';
-};
 
 // Main formatting function
 export async function formatUserData(rawUser: Record<string, any>): ChavrutaCardProps {
-  const checkTimeSlot = (dayValue: any, slot: string) => {
-    // If dayValue is null/undefined or not an array, return false
-    if (!dayValue || !Array.isArray(dayValue)) {
-      return false;
-    }
-    // Only check includes if we have a valid array
-    return dayValue.includes(slot) || false;
-  };
 
   const learningTimes: LearningTimes = {
     sunday: {
@@ -110,13 +80,6 @@ export async function formatUserData(rawUser: Record<string, any>): ChavrutaCard
     },
   };
 
-  const formatName = () => {
-    if (rawUser.fullName?.trim()) return rawUser.fullName;
-    const fName = rawUser.fName?.trim() || '';
-    const lName = rawUser.lName?.trim() || '';
-    return fName || lName ? `${fName} ${lName}`.trim() : 'Not specified';
-  };
-
   const formatLocation = () => {
     const city = rawUser.city?.trim() || '';
     const country = rawUser.country?.trim() || '';
@@ -139,8 +102,17 @@ export async function formatUserData(rawUser: Record<string, any>): ChavrutaCard
     { label: 'Learning Skill', value: formatField(rawUser.learningSkill) },
   ];
 
+  const calculateAge = (birthYear: number | string): string => {
+    if (!birthYear) return 'Not specified';
+    const year = Number(birthYear);
+    if (isNaN(year)) return 'Not specified';
+    const currentYear = new Date().getFullYear();
+    return String(currentYear - year);
+  };
+
   const extraDetails: LabelValuePair[] = [
      { label: 'Gender', value: rawUser.gender?.trim() || 'Not specified' },
+     { label: 'Age', value: calculateAge(rawUser.age) },
         { label: 'Location', value: formatLocation() },
     { label: 'Jewish Affiliation', value: formatField(rawUser.jewishAndComAff) },
     { label: 'Profession', value: formatField(rawUser.profession) }
@@ -161,51 +133,90 @@ export async function formatUserData(rawUser: Record<string, any>): ChavrutaCard
       .join('\n') || 'None provided';
   };
 
-  const openQuestions: Question[] = [
-    {
-      id: '1',
-      question: 'Background',
-      answer: formatField(rawUser.background)
-    },
-    {
-      id: '2',
-      question: 'Experience',
-      answer: formatField(rawUser.experience)
-    },
-    {
-      id: '3',
-      question: 'Requests',
-      answer: formatField(rawUser.requests)
-    },
-    {
-      id: '4',
-      question: 'Who Introduced You?',
-      answer: formatField(rawUser.whoIntroduced)
-    },
-    {
-      id: '5',
-      question: 'Hopes and Expectations',
-      answer: formatArrayResponse(rawUser.hopesExpectations)
-    },
-    {
-      id: '6',
-      question: 'Additional Information',
-      answer: formatField(rawUser.additionalInfo)
-    },
-    {
-      id: '7',
-      question: 'Anything Else',
-      answer: formatField(rawUser.anythingElse)
-    }
-  ];
+  const openQuestions: Question[] = [];
 
-  const formatTrackNames = async (trackIds: string[] = []) => {
+  if (rawUser.whoIntroduced) {
+      openQuestions.push({
+        id: 'whoIntroduced',
+        question: 'Who Introduced You?',
+        answer: rawUser.whoIntroduced
+      });
+    }
+  
+  if (rawUser.country === 'Israel') {
+    // Questions for Israeli users
+    if (rawUser.biographHeb) {
+      openQuestions.push({
+        id: 'biography',
+        question: 'Tell us about yourself',
+        answer: rawUser.biographHeb
+      });
+    }
+    if (rawUser.whyJoinShalhevet) {
+      openQuestions.push({
+        id: 'whyJoin',
+        question: 'Why did you join Shalhevet?',
+        answer: rawUser.whyJoinShalhevet
+      });
+    }
+    if (rawUser.personalTraits) {
+      openQuestions.push({
+        id: 'traits',
+        question: 'Personal Traits',
+        answer: rawUser.personalTraits
+      });
+    }
+  } else {
+    // Questions for non-Israeli users
+    if (rawUser.background) {
+      openQuestions.push({
+        id: 'background',
+        question: 'Tell us about yourself',
+        answer: rawUser.background
+      });
+    }
+    
+    if (rawUser.additionalInfo) {
+      openQuestions.push({
+        id: 'additionalInfo',
+        question: 'Additional Information',
+        answer: rawUser.additionalInfo
+      });
+    }
+    if (rawUser.hopesExpectations) {
+      openQuestions.push({
+        id: 'hopesExpectations',
+        question: 'Hopes and Expectations',
+        answer: Array.isArray(rawUser.hopesExpectations) 
+          ? rawUser.hopesExpectations.join('\n')
+          : rawUser.hopesExpectations
+      });
+    }
+    if (rawUser.requests) {
+      openQuestions.push({
+        id: 'requests',
+        question: 'Requests',
+        answer: rawUser.requests
+      });
+    }
+  }
+  console.log("requests", rawUser.requests);
+
+  
+
+  const formatTrackNames = async (trackIds: string[] = []): Promise<TrackInfo[]> => {
     if (!Array.isArray(trackIds) || trackIds.length === 0) return [];
     
-    const tracks = await getTracks();
+    const tracks = Object.values(PreferredTracksInfo)
+      .filter(track => track.id)
+      .map(track => ({
+        id: track.id,
+        trackEn: track.trackEn
+      }));
+
     return trackIds
-      .map(id => tracks.find(track => track.id === id)?.trackEn)
-      .filter((name): name is string => !!name); // filter out undefined and null values
+      .map(id => tracks.find(track => track.id === id))
+      .filter((track): track is TrackInfo => !!track);
   };
 
   // Get the track names from the prefTra field
