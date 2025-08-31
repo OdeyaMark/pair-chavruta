@@ -145,7 +145,7 @@ td {
 }
 
 .icon-success {
-  color: green;
+  color: #16a34a;  /* Matching green color */
 }
 
 .icon-error {
@@ -203,4 +203,45 @@ td {
 
 .dropdown-item:hover {
   background-color: #f3f4f6;
+}
+
+.button-with-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 20px;  /* More rounded corners */
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background-color: #e6f4ea;  /* Light green background */
+  border: 1px solid #22c55e;  /* Green border */
+}
+
+.button-with-title:hover {
+  background-color: #d0e9d8;  /* Darker green on hover */
+  transform: translateY(-1px);  /* Slight lift effect */
+}
+
+.button-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #16a34a;  /* Green text color */
+}
+
+.button-with-title.discard {
+  background-color: #fee2e2;  /* Light red background */
+  border: 1px solid #ef4444;  /* Red border */
+}
+
+.button-with-title.discard:hover {
+  background-color: #fecaca;  /* Darker red on hover */
+  transform: translateY(-1px);
+}
+
+.button-with-title.discard .button-title {
+  color: #dc2626;  /* Red text color */
+}
+
+.icon-danger {
+  color: #dc2626;
 }

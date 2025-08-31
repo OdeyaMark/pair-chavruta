@@ -5,6 +5,7 @@ import { GenericTable } from '../../../components/GenericTable';
 import { fetchChavrutasFromCMS, fetchPendingChavrutasFromCMS, updateChavrutaBase } from '../../../data/cmsData';
 import { Check, X } from 'lucide-react';
 import { PairStatus } from '../../../constants/status';
+import { PreferredTracksInfo } from '../../../constants/tracks';
 
 const DashboardPage: FC = () => {
   const columns = [
@@ -13,35 +14,28 @@ const DashboardPage: FC = () => {
     { key: "track", label: "Track" },
     {
       key: "activate",
-      label: "",
-      render: () => (
-        <div className="icon-cell">
-          <Check size={20} className="action-icon success" />
-        </div>
-      ),
-      onClick: (id: string) => handleActivate(id)
+      label: "activate",
     },
     {
       key: "discard",
-      label: "",
-      render: () => (
-        <div className="icon-cell">
-          <X size={20} className="action-icon danger" />
-        </div>
-      ),
-      onClick: (id: string) => handleDiscard(id)
+      label: "discard",
     }
   ];
 
   const fetchPendingMatches = async (search: string, page: number, pageSize: number) => {
     const chavrutas = await fetchPendingChavrutasFromCMS();
-    console.log('Pending Matches:', chavrutas); // Debug log
-    const pendingMatches = chavrutas .map(chavruta => ({
+    const pendingMatches = chavrutas.map(chavruta => {
+      // Find track name from PreferredTracksInfo
+      const track = Object.values(PreferredTracksInfo)
+        .find(t => t.id === chavruta.track);
+
+      return {
         id: chavruta._id,
         israeliParticipant: chavruta.fromIsraelId?.fullName || 'Unknown',
         diasporaParticipant: chavruta.fromWorldId?.fullName || 'Unknown',
-        track: chavruta.track || 'Unknown'
-      }));
+        track: track?.trackEn || 'Unknown Track'
+      };
+    });
 
     const filteredMatches = pendingMatches.filter(match =>
       match.israeliParticipant.toLowerCase().includes(search.toLowerCase()) ||

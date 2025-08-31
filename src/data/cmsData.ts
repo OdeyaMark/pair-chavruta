@@ -47,7 +47,47 @@ export async function fetchUserById(userId: string) {
   }
 }
 
+interface Track {
+  id: string;
+  trackEn: string;
+}
 
+// Function to fetch tracks and log them - run this during development to get the data
+export async function fetchTracks() {
+  try {
+    consola.info('Fetching tracks data...');
+    const results = await items.query('tracks')
+      .fields("_id", "trackEn")
+      .find();
+    
+    const tracks: Track[] = results.items.map(item => ({
+      id: item._id,
+      trackEn: item.trackEn
+    }));
+
+    // Log the tracks data to copy into the static file
+    consola.success('Tracks data:', JSON.stringify({ tracks }, null, 2));
+    return tracks;
+  } catch (error) {
+    consola.error('Error fetching tracks:', error);
+    return [];
+  }
+}
+
+// Import the static tracks data
+import tracksData from './tracks.json';
+
+// Function to get tracks, fetching from CMS if static data is empty
+export async function getTracks(): Promise<Track[]> {
+  // Check if we have data in the static file
+  if (!tracksData.tracks || tracksData.tracks.length === 0) {
+    consola.info('No tracks found in static file, fetching from CMS...');
+    return await fetchTracks();
+  }
+
+  consola.info('Using tracks from static file');
+  return tracksData.tracks;
+}
 
 export const fetchUserContact = async (userId: string): Promise<{ email: string; tel: string }> => {
   try {

@@ -13,6 +13,22 @@ export interface TableColumn {
   };
 }
 
+// Add this custom button component
+const ActivateButton: React.FC = () => (
+  <div className="button-with-title">
+    <Check size={18} className="icon-success" />
+    <span className="button-title">Activate</span>
+  </div>
+);
+
+const DiscardButton: React.FC = () => (
+  <div className="button-with-title discard">
+    <X size={18} className="icon-danger" />
+    <span className="button-title">Discard</span>
+  </div>
+);
+
+// Update the ICON_MAP
 const ICON_MAP: Record<string, React.ComponentType<any>> = {
   edit: Pencil,
   delete: Trash2,
@@ -23,7 +39,8 @@ const ICON_MAP: Record<string, React.ComponentType<any>> = {
   archive: Archive,
   notes: StickyNote,
   pair: Handshake,
-
+  activate: ActivateButton,  // Add this line
+  discard: DiscardButton,  // Add this line
   // Add more mappings as needed
 };
 
