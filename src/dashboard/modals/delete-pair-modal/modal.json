@@ -1,0 +1,7 @@
+{
+  "$schema": "https://dev.wix.com/wix-cli/schemas/dashboard-modal.json",
+  "id": "81bfe4af-e5cd-434d-bf31-3641deb7cbd7",
+  "title": "delete pair modal",
+  "width": 550,
+  "height": 600
+}

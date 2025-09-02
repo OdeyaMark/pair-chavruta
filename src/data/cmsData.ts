@@ -244,3 +244,13 @@ export async function fetchArchivedUsers() {
   }
 }
 
+export function deletePairFromDatabase(pairId: string, reason: string) {
+  // Implement your deletion logic here
+  console.log(`Deleting pair ${pairId} for reason: ${reason}`);
+  return updateChavrutaBase(pairId, (chavruta) => ({
+    ...chavruta,
+    isDeleted: true,
+    deleteReason: reason,
+    dateOfDelete: new Date().toISOString()
+  }));
+}

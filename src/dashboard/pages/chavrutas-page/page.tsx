@@ -1,6 +1,6 @@
-import React, { type FC, useState, useEffect, useMemo } from 'react';
-import { Page, WixDesignSystemProvider, Dropdown } from '@wix/design-system';
-import { Mail, Trash2, Eye } from 'lucide-react';
+import React, { type FC, useState, useEffect, useMemo, useCallback } from 'react';
+import { Page, WixDesignSystemProvider, Dropdown, Box, Text, ToggleSwitch } from '@wix/design-system';
+import { Mail, Trash2, Eye, StickyNote } from 'lucide-react';
 import '@wix/design-system/styles.global.css';
 import { GenericTable, TableColumn } from '../../../components/GenericTable';
 import { dashboard } from '@wix/dashboard';
@@ -26,14 +26,85 @@ interface ChavrutaRow {
     diaspora: Record<string, any>;
   };
   note?: string;
+  deleteDate?: string;
+  deleteReason?: string;
+  notes?: JSX.Element;
 }
 
 const DashboardPage: FC = () => {
+  // Initialize from sessionStorage with JSX parsing
+  const [activeChavrutas, setActiveChavrutas] = useState<ChavrutaRow[]>(() => {
+    try {
+      const stored = sessionStorage.getItem('activeChavrutas');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+  
+  const [archivedChavrutas, setArchivedChavrutas] = useState<ChavrutaRow[]>(() => {
+    try {
+      const stored = sessionStorage.getItem('archivedChavrutas');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [initialFetch, setInitialFetch] = useState(() => {
+    const hasActiveData = sessionStorage.getItem('activeChavrutas');
+    const hasArchivedData = sessionStorage.getItem('archivedChavrutas');
+    return !(hasActiveData || hasArchivedData);
+  });
+
+  // Persist data with JSX element recreation
+  const persistActiveChavrutas = useCallback((data: ChavrutaRow[]) => {
+    // Remove JSX elements before storing
+    const dataToStore = data.map(item => ({
+      ...item,
+      details: null,
+      mail: null,
+      delete: null,
+      notes: null
+    }));
+    sessionStorage.setItem('activeChavrutas', JSON.stringify(dataToStore));
+    
+    // Recreate JSX elements for current state
+    const dataWithJSX = data.map(item => ({
+      ...item,
+      details: <div className="icon-cell"><Eye size={20} className="action-icon" /></div>,
+      mail: <div className="icon-cell"><Mail size={20} className="action-icon" /></div>,
+      delete: <div className="icon-cell"><Trash2 size={20} className="action-icon" /></div>
+    }));
+    
+    setActiveChavrutas(dataWithJSX);
+  }, []);
+
+  const persistArchivedChavrutas = useCallback((data: ChavrutaRow[]) => {
+    const dataToStore = data.map(item => ({
+      ...item,
+      details: null,
+      notes: null
+    }));
+    sessionStorage.setItem('archivedChavrutas', JSON.stringify(dataToStore));
+    
+    const dataWithJSX = data.map(item => ({
+      ...item,
+      notes: <div className="icon-cell"><StickyNote size={20} className="action-icon" /></div>
+    }));
+    
+    setArchivedChavrutas(dataWithJSX);
+  }, []);
+
   const [selectedYear, setSelectedYear] = useState<string>('');
   const [selectedTrack, setSelectedTrack] = useState<string>('');
   const [selectedStatus, setSelectedStatus] = useState<string>('');
-  const [allChavrutas, setAllChavrutas] = useState<ChavrutaRow[]>([]);
-  const [initialFetch, setInitialFetch] = useState(true);
+  const [showArchived, setShowArchived] = useState(false); // Add this
+
+  // Memoized current data based on toggle
+  const allChavrutas = useMemo(() => {
+    return showArchived ? archivedChavrutas : activeChavrutas;
+  }, [showArchived, activeChavrutas, archivedChavrutas]);
 
   // Fetch data once when component mounts
   useEffect(() => {
@@ -42,32 +113,57 @@ const DashboardPage: FC = () => {
     }
   }, [initialFetch]);
 
+  // Update fetchInitialData to separate active and archived
   const fetchInitialData = async () => {
     try {
+      console.log('Fetching initial data...');
       const data = await fetchChavrutasFromCMS();
-      const formattedData: ChavrutaRow[] = data.map(item => ({
-        id: item._id,
-        israeliParticipant: item.fromIsraelId?.fullName,
-        diasporaParticipant: item.fromWorldId?.fullName,
-        creationDate: new Date(item.dateOfCreate).toLocaleDateString('en-US', {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric'
-        }),
-        // Map track ID to track name using PreferredTracksInfo
-        track: Object.values(PreferredTracksInfo).find(t => t.id === item.track)?.trackEn || 'Unknown Track',
-        note: item.note,
-        status: PairStatusLabels[Number(item.status) as PairStatus] || PairStatusLabels[PairStatus.Default],
-        matchDate: item.dateOfCreate,
-        details: <div className="icon-cell"><Eye size={20} className="action-icon" /></div>,
-        mail: <div className="icon-cell"><Mail size={20} className="action-icon" /></div>,
-        delete: <div className="icon-cell"><Trash2 size={20} className="action-icon" /></div>,
-        participantData: {
-          israeli: item.fromIsraelId,
-          diaspora: item.fromWorldId
+
+      const active: ChavrutaRow[] = [];
+      const archived: ChavrutaRow[] = [];
+
+      data.forEach(item => {
+        const formattedItem: ChavrutaRow = {
+          id: item._id,
+          israeliParticipant: item.fromIsraelId?.fullName || 'N/A',
+          diasporaParticipant: item.fromWorldId?.fullName || 'N/A',
+          creationDate: new Date(item.dateOfCreate).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+          }),
+          track: Object.values(PreferredTracksInfo).find(t => t.id === item.track)?.trackEn || 'Unknown Track',
+          note: item.note || '',
+          status: PairStatusLabels[Number(item.status) as PairStatus] || PairStatusLabels[PairStatus.Default],
+          matchDate: item.dateOfCreate,
+          participantData: {
+            israeli: item.fromIsraelId || {},
+            diaspora: item.fromWorldId || {}
+          }
+        };
+
+        if (item.isDeleted) {
+          // Add archived-specific properties
+          formattedItem.deleteDate = item.dateOfDelete ? new Date(item.dateOfDelete).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+          }) : 'Unknown';
+          formattedItem.deleteReason = item.deleteReason || '';
+          formattedItem.details = <div className="icon-cell"><Eye size={20} className="action-icon" /></div>;
+          formattedItem.notes = <div className="icon-cell"><StickyNote size={20} className="action-icon" /></div>;
+          archived.push(formattedItem);
+        } else {
+          // Add active-specific properties
+          formattedItem.details = <div className="icon-cell"><Eye size={20} className="action-icon" /></div>;
+          formattedItem.mail = <div className="icon-cell"><Mail size={20} className="action-icon" /></div>;
+          formattedItem.delete = <div className="icon-cell"><Trash2 size={20} className="action-icon" /></div>;
+          active.push(formattedItem);
         }
-      }));
-      setAllChavrutas(formattedData);
+      });
+
+      persistActiveChavrutas(active);
+      persistArchivedChavrutas(archived);
       setInitialFetch(false);
     } catch (error) {
       console.error('Error fetching initial data:', error);
@@ -81,38 +177,87 @@ const DashboardPage: FC = () => {
     }
   }, [initialFetch]);
 
-  // Extract unique values for filters
-  const filters = useMemo(() => {
-    const years = Array.from(new Set(allChavrutas.map(item => 
-      new Date(item.matchDate).getFullYear().toString()
-    ))).sort();
-
-    const tracks = Array.from(new Set(allChavrutas.map(item => item.track))).sort();
-    
-    // Map status enum values to their labels
-    const statuses = Object.values(PairStatus)
-      .filter(status => typeof status === 'number')
-      .map(status => ({
-        id: PairStatusLabels[status as PairStatus],
-        value: PairStatusLabels[status as PairStatus]
-      }));
-
-    return {
-      years: years.map(year => ({ id: year, value: year })),
-      tracks: tracks.map(track => ({ id: track, value: track })),
-      statuses
-    };
-  }, [allChavrutas]);
+  // Add handler for notes click
+  const handleNotesClick = (id: string) => {
+    const chavruta = allChavrutas.find(item => item.id === id);
+    if (chavruta) {
+      dashboard.openModal({
+        modalId: "87855b31-290a-42c2-804a-7b776bdb8f5b", // Your notes modal ID
+        params: { 
+          userId: id,
+          initialNote: chavruta.deleteReason || '',
+          readOnly: true,
+          title: "Delete Reason"
+        }
+      });
+    }
+  };
 
   const handleMailClick = (id: string) => {
     
   };
 
+  // Update handleDeleteClick to open the delete modal
   const handleDeleteClick = (id: string) => {
-    // TODO: Implement deletion logic
-    console.log('Delete chavruta match:', id);
+    dashboard.openModal({
+      modalId: "81bfe4af-e5cd-434d-bf31-3641deb7cbd7", // Make sure this matches your delete modal ID
+      params: {
+        pairId: id,
+        onDelete: async (pairId: string, reason: string) => {
+          await handleDeletePair(pairId, reason);
+        }
+      }
+    });
   };
 
+  // Replace the existing handleDeletePair with this useCallback version
+  const handleDeletePair = useCallback(async (id: string, deleteReason: string) => {
+    try {
+      
+      const chavrutaToDelete = activeChavrutas.find(chavruta => chavruta.id === id);
+      if (!chavrutaToDelete) {
+        console.error('Chavruta not found in active list');
+        console.log('Available active IDs:', activeChavrutas.map(c => c.id));
+        return;
+      }
+
+      // Update database
+      await updateChavrutaBase(id, (chavruta) => ({
+        ...chavruta,
+        isDeleted: true,
+        dateOfDelete: new Date().toISOString(),
+        deleteReason: deleteReason
+      }));
+
+      // Create archived version
+      const archivedChavruta: ChavrutaRow = {
+        ...chavrutaToDelete,
+        deleteDate: new Date().toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric'
+        }),
+        deleteReason: deleteReason,
+        notes: <div className="icon-cell"><StickyNote size={20} className="action-icon" /></div>
+      };
+
+      // Update states
+      setActiveChavrutas(prev => {
+        const filtered = prev.filter(chavruta => chavruta.id !== id);
+        return filtered;
+      });
+
+      setArchivedChavrutas(prev => {
+        const updated = [...prev, archivedChavruta];
+        return updated;
+      });
+
+    } catch (error) {
+      console.error('Error in handleDeletePair:', error);
+    }
+  }, [activeChavrutas]); // Add activeChavrutas as dependency
+
+  // Update the handleStatusChange function
   const handleStatusChange = async (rowId: string, newStatus: string) => {
     try {
       const statusEntry = Object.entries(PairStatusLabels).find(([_, label]) => label === newStatus);
@@ -125,8 +270,8 @@ const DashboardPage: FC = () => {
         status: numericStatus
       }));
       
-      // Update local state
-      setAllChavrutas(prev => prev.map(chavruta => {
+      // Update local state - only update activeChavrutas since status is only editable for active items
+      setActiveChavrutas(prev => prev.map(chavruta => {
         if (chavruta.id === rowId) {
           return {
             ...chavruta,
@@ -135,12 +280,13 @@ const DashboardPage: FC = () => {
         }
         return chavruta;
       }));
+      
     } catch (error) {
       console.error('Error updating status:', error);
     }
   };
 
-  // Add handleTrackChange function after handleStatusChange
+  // Update handleTrackChange function
   const handleTrackChange = async (rowId: string, newTrack: string) => {
     try {
       // Find track ID using PreferredTracksInfo
@@ -155,16 +301,20 @@ const DashboardPage: FC = () => {
         track: trackId
       }));
       
-      // Update local state
-      setAllChavrutas(prev => prev.map(chavruta => {
-        if (chavruta.id === rowId) {
-          return {
-            ...chavruta,
-            track: newTrack
-          };
-        }
-        return chavruta;
-      }));
+      // Update local state - update both active and archived since track can be viewed in both modes
+      if (!showArchived) {
+        // Only update activeChavrutas when in active mode (since track is only editable there)
+        setActiveChavrutas(prev => prev.map(chavruta => {
+          if (chavruta.id === rowId) {
+            return {
+              ...chavruta,
+              track: newTrack
+            };
+          }
+          return chavruta;
+        }));
+      }
+      
     } catch (error) {
       console.error('Error updating track:', error);
     }
@@ -187,53 +337,95 @@ const DashboardPage: FC = () => {
     }
   };
 
-  // Update the columns definition
-  const columns: TableColumn[] = [
-    { key: "israeliParticipant", label: "Israeli Participant" },
-    { key: "diasporaParticipant", label: "Diaspora Participant" },
-    { key: "creationDate", label: "Creation Date" },
-    { 
-      key: "track", 
-      label: "Track",
-      editable: {
-        options: Object.values(PreferredTracksInfo)
-          .filter(track => track.id) // Only include tracks with IDs
-          .map(track => ({
-            value: track.trackEn,
-            label: track.trackEn
-          })),
-        onSelect: handleTrackChange
+  // Dynamic columns based on archive mode
+  const columns: TableColumn[] = useMemo(() => {
+    const baseColumns = [
+      { key: "israeliParticipant", label: "Israeli Participant" },
+      { key: "diasporaParticipant", label: "Diaspora Participant" },
+      { key: "creationDate", label: "Creation Date" },
+      { 
+        key: "track", 
+        label: "Track",
+        ...(showArchived ? {} : {
+          editable: {
+            options: Object.values(PreferredTracksInfo)
+              .filter(track => track.id)
+              .map(track => ({
+                value: track.trackEn,
+                label: track.trackEn
+              })),
+            onSelect: handleTrackChange
+          }
+        })
       }
-    },
-    { 
-      key: "status", 
-      label: "Status",
-      editable: {
-        options: Object.values(PairStatus)
-          .filter(status => typeof status === 'number')
-          .map(status => ({
-            value: PairStatusLabels[status as PairStatus],
-            label: PairStatusLabels[status as PairStatus]
-          })),
-        onSelect: handleStatusChange
-      }
-    },
-    { 
-      key: "details",
-      label: "",
-      onClick: (id: string) => handleDetailsClick(id)
-    },
-    { 
-      key: "mail",
-      label: "",
-      onClick: handleMailClick
-    },
-    { 
-      key: "delete",
-      label: "",
-      onClick: handleDeleteClick
+    ];
+
+    if (showArchived) {
+      return [
+        ...baseColumns,
+        { key: "deleteDate", label: "Delete Date" },
+        { 
+          key: "notes",
+          label: "",
+          onClick: (id: string) => handleNotesClick(id)
+        }
+      ];
+    } else {
+      return [
+        ...baseColumns,
+        { 
+          key: "status", 
+          label: "Status",
+          editable: {
+            options: Object.values(PairStatus)
+              .filter(status => typeof status === 'number')
+              .map(status => ({
+                value: PairStatusLabels[status as PairStatus],
+                label: PairStatusLabels[status as PairStatus]
+              })),
+            onSelect: handleStatusChange
+          }
+        },
+        { 
+          key: "details",
+          label: "",
+          onClick: (id: string) => handleDetailsClick(id)
+        },
+        { 
+          key: "mail",
+          label: "",
+          onClick: handleMailClick
+        },
+        { 
+          key: "delete",
+          label: "",
+          onClick: handleDeleteClick
+        }
+      ];
     }
-  ];
+  }, [showArchived]);
+
+  // Update filters to work with current data
+  const filters = useMemo(() => {
+    const years = Array.from(new Set(allChavrutas.map(item => 
+      new Date(item.matchDate).getFullYear().toString()
+    ))).sort();
+
+    const tracks = Array.from(new Set(allChavrutas.map(item => item.track))).sort();
+    
+    const statuses = Object.values(PairStatus)
+      .filter(status => typeof status === 'number')
+      .map(status => ({
+        id: PairStatusLabels[status as PairStatus],
+        value: PairStatusLabels[status as PairStatus]
+      }));
+
+    return {
+      years: years.map(year => ({ id: year, value: year })),
+      tracks: tracks.map(track => ({ id: track, value: track })),
+      statuses
+    };
+  }, [allChavrutas]);
 
   // Update fetchChavrutas to use the stored data
   const fetchChavrutas = async (search: string, page: number, pageSize: number) => {
@@ -272,6 +464,7 @@ const DashboardPage: FC = () => {
     };
   };
 
+
   return (
     <WixDesignSystemProvider features={{ newColorsBranding: true }}>
       <Page>
@@ -281,6 +474,24 @@ const DashboardPage: FC = () => {
         />
         <Page.Content>
           <div style={{ maxWidth: 1200, margin: "32px auto", padding: "0 16px" }}>
+            {/* Add Archive Toggle */}
+            <Box direction="horizontal" verticalAlign="middle" marginBottom="24px">
+              <Text size="small" weight="bold" marginRight="12px">
+                Active Chavrutas
+              </Text>
+              <Box marginLeft="12px" marginRight="12px">
+                <ToggleSwitch
+                  checked={showArchived}
+                  onChange={() => setShowArchived(prev => !prev)}
+                  size="small"
+                />
+              </Box>
+              <Text size="small" weight="bold" marginLeft="12px">
+                Archived Chavrutas
+              </Text>
+            </Box>
+
+            {/* Existing filters */}
             <div style={{ 
               display: 'flex', 
               gap: '16px', 

@@ -2,6 +2,7 @@ import React, { type FC, useState, useEffect } from 'react';
 import { dashboard } from '@wix/dashboard';
 import {
   WixDesignSystemProvider,
+  Text,
   Box,
   CustomModalLayout,
 } from '@wix/design-system';
@@ -9,33 +10,33 @@ import '@wix/design-system/styles.global.css';
 import { width, height } from './modal.json';
 import NotesSection from '../../../components/NotesSection';
 
+
+
 interface ModalParams {
-  userId: string;
-  initialNote?: string;
-  onSave: (note: string) => Promise<void>;
+  pairId: string;
+  onDelete: (pairId: string, reason: string) => Promise<void>;
 }
 
 interface ModalState {
-  userId: string | null;
-  initialNote: string;
-  onSave?: (note: string) => Promise<void>;
+  pairId: string | null;
+  onDelete?: (pairId: string, reason: string) => Promise<void>;
 }
 
 const initialModalState: ModalState = {
-  userId: null,
-  initialNote: '',
+  pairId: null,
 };
 
 const Modal: FC = () => {
   const [modalState, setModalState] = useState<ModalState>(initialModalState);
+  const [deleteReason, setDeleteReason] = useState<string>('');
 
   useEffect(() => {
+    console.log("opening delete modal");
     const observerResult = dashboard.observeState((params: ModalParams) => {
       if (params) {
         setModalState({
-          userId: params.userId || null,
-          initialNote: params.initialNote || '',
-          onSave: params.onSave,
+          pairId: params.pairId || null,
+          onDelete: params.onDelete,
         });
       }
     });
@@ -43,14 +44,14 @@ const Modal: FC = () => {
     return () => observerResult?.disconnect?.();
   }, []);
 
-  const handleSave = async (note: string) => {
+  const handleDelete = async () => {
     try {
-      if (modalState.onSave) {
-        await modalState.onSave(note);
+      if (modalState.pairId && modalState.onDelete) {
+        await modalState.onDelete(modalState.pairId, deleteReason);
         dashboard.closeModal();
       }
     } catch (error) {
-      console.error('Error saving note:', error);
+      console.error('Error deleting pair:', error);
     }
   };
 
@@ -59,13 +60,24 @@ const Modal: FC = () => {
       <CustomModalLayout
         width={width}
         maxHeight={height}
+        primaryButtonText="Delete"
+        secondaryButtonText="Cancel"
         onCloseButtonClick={() => dashboard.closeModal()}
-        title={`Notes for User`}
+        primaryButtonOnClick={handleDelete}
+        secondaryButtonOnClick={() => dashboard.closeModal()}
+        title="Delete Chavruta Pair"
+        subtitle="Are you sure you want to delete this chavruta pair?"
         content={
           <Box direction="vertical" padding="24px">
+            <Text weight="bold" marginBottom="24px">
+              Please provide a reason for deleting this pair
+            </Text>
             <NotesSection
-              initialNote={modalState.initialNote}
-              onSave={handleSave}
+              initialNote={deleteReason}
+              onSave={async (note: string) => {
+                setDeleteReason(note);
+              }}
+              showSaveButton={false}
             />
           </Box>
         }

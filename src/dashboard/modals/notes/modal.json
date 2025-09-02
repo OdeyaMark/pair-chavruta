@@ -1,0 +1,7 @@
+{
+  "$schema": "https://dev.wix.com/wix-cli/schemas/dashboard-modal.json",
+  "id": "87855b31-290a-42c2-804a-7b776bdb8f5b",
+  "title": "notes",
+  "width": 550,
+  "height": 600
+}
