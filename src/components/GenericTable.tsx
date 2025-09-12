@@ -7,10 +7,14 @@ export interface TableColumn {
   key: string;
   label: string;
   onClick?: (id: string) => void;
+  render?: (row: any) => React.ReactNode;
   editable?: {
     options: Array<{ value: string; label: string }>;
     onSelect: (rowId: string, value: string) => void;
-  };
+  } | ((row: any) => {
+    options: Array<{ value: string; label: string }>;
+    onSelect: (rowId: string, value: string) => void;
+  } | undefined);
 }
 
 // Add this custom button component
@@ -28,7 +32,24 @@ const DiscardButton: React.FC = () => (
   </div>
 );
 
-// Update the ICON_MAP
+// Insert IconButton here
+export const IconButton: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement>> = ({ children, onClick, ...props }) => {
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        if (onClick) onClick(e);
+      }}
+      {...props}
+      className={`icon-button ${props.className || ''}`}
+    >
+      {children}
+    </button>
+  );
+};
+
+// ICON_MAP follows...
 const ICON_MAP: Record<string, React.ComponentType<any>> = {
   edit: Pencil,
   delete: Trash2,
@@ -46,12 +67,14 @@ const ICON_MAP: Record<string, React.ComponentType<any>> = {
 
 export interface GenericTableProps {
   columns: TableColumn[];
-  fetchData: (search: string, page: number, pageSize: number) => Promise<{
-    data: any[];
-    total: number;
-  }>;
+  data: any[];
+  total?: number;
+  loading?: boolean;
+  onSearch?: (search: string, page: number, pageSize: number) => void;
   pageSize?: number;
-  onRowClick?: (id: string) => void; // Add this prop
+  // changed: pass the full row (not only id)
+  onRowClick?: (row: any) => void;
+  selectedRowId?: string;
 }
 
 const DEFAULT_PAGE_SIZE = 10;
@@ -64,15 +87,16 @@ interface DropdownState {
 
 export const GenericTable: React.FC<GenericTableProps> = ({ 
   columns, 
-  fetchData, 
+  data,
+  total = 0,
+  loading = false,
+  onSearch,
   pageSize = DEFAULT_PAGE_SIZE,
-  onRowClick 
+  onRowClick,
+  selectedRowId
 }) => {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const [data, setData] = useState<any[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(false);
   const [dropdown, setDropdown] = useState<DropdownState>({
     isOpen: false,
     rowId: null,
@@ -83,19 +107,20 @@ export const GenericTable: React.FC<GenericTableProps> = ({
     debounce((value: string) => {
       setSearch(value);
       setPage(1);
+      if (onSearch) {
+        onSearch(value, 1, pageSize);
+      }
     }, 300),
-    []
+    [onSearch, pageSize]
   );
 
-  useEffect(() => {
-    setLoading(true);
-    fetchData(search, page, pageSize)
-      .then(res => {
-        setData(res.data);
-        setTotal(res.total);
-      })
-      .finally(() => setLoading(false));
-  }, [search, page, pageSize, fetchData]);
+  // Handle pagination changes
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+    if (onSearch) {
+      onSearch(search, newPage, pageSize);
+    }
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -111,14 +136,38 @@ export const GenericTable: React.FC<GenericTableProps> = ({
   const renderDropdown = (columnKey: string, rowId: string, options: Array<{ value: string; label: string }>, onSelect: (rowId: string, value: string) => void) => {
     if (dropdown.isOpen && dropdown.rowId === rowId && dropdown.columnKey === columnKey) {
       return (
-        <div className="dropdown-content">
+        <div className="dropdown-content" style={{
+          position: 'absolute',
+          top: '100%',
+          left: '0',
+          right: '0',
+          backgroundColor: 'white',
+          border: '1px solid #ddd',
+          borderRadius: '4px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          zIndex: 1000,
+          maxHeight: '200px',
+          overflowY: 'auto'
+        }}>
           {options.map((option) => (
             <div
               key={option.value}
               className="dropdown-item"
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
                 onSelect(rowId, option.value);
                 setDropdown({ isOpen: false, rowId: null, columnKey: null });
+              }}
+              style={{
+                padding: '8px 12px',
+                cursor: 'pointer',
+                borderBottom: '1px solid #eee'
+              }}
+              onMouseEnter={(e) => {
+                (e.target as HTMLElement).style.backgroundColor = '#f5f5f5';
+              }}
+              onMouseLeave={(e) => {
+                (e.target as HTMLElement).style.backgroundColor = 'white';
               }}
             >
               {option.label}
@@ -133,27 +182,79 @@ export const GenericTable: React.FC<GenericTableProps> = ({
   const renderCellContent = (columnKey: string, value: any, row: any) => {
     const column = columns.find(col => col.key === columnKey);
 
+    // Handle function-based or static editable configuration
+    let editableConfig;
     if (column?.editable) {
+      if (typeof column.editable === 'function') {
+        editableConfig = column.editable(row);
+      } else {
+        editableConfig = column.editable;
+      }
+    }
+
+    if (editableConfig && editableConfig.options && editableConfig.onSelect) {
+      const options = editableConfig.options;
+      
+      // Get current selected value or default to first option
+      const currentValue = value || '';
+      const currentLabel = options.find(opt => opt.value === currentValue)?.label || 
+                          (options.length > 0 ? options[0].label : 'Select...');
+
       return (
         <div className="editable-cell">
           <div
-            onClick={() => setDropdown({
-              isOpen: true,
-              rowId: row.id,
-              columnKey: columnKey
-            })}
+            onClick={() => {
+              if (options.length > 0) {
+                setDropdown({
+                  isOpen: !dropdown.isOpen || dropdown.rowId !== row.id || dropdown.columnKey !== columnKey,
+                  rowId: row.id,
+                  columnKey: columnKey
+                });
+              }
+            }}
             className="editable-value"
+            style={{
+              cursor: 'pointer',
+              padding: '4px 8px',
+              border: '1px solid #ddd',
+              borderRadius: '4px',
+              backgroundColor: 'white',
+              minHeight: '20px',
+              position: 'relative',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}
           >
-            {value}
+            <span>{currentLabel}</span>
+            <span style={{ marginLeft: '8px' }}>
+              {dropdown.isOpen && dropdown.rowId === row.id && dropdown.columnKey === columnKey ? '▲' : '▼'}
+            </span>
           </div>
-          {renderDropdown(columnKey, row.id, column.editable.options, column.editable.onSelect)}
+          {renderDropdown(columnKey, row.id, options, editableConfig.onSelect)}
         </div>
       );
     }
 
+    if (column?.render) {
+      return column.render(row);
+    }
+
     if (ICON_MAP[columnKey]) {
       const IconComponent = ICON_MAP[columnKey];
-      return <IconComponent size={18} className="icon" />;
+      return (
+        <IconButton onClick={(e) => {
+          e.stopPropagation();
+          // Prefer column-specific handler with full row
+          if (column?.onClick) {
+            column.onClick(row); // <- pass full row instead of row.id
+            return;
+          }
+          if (onRowClick) onRowClick(row); // <- also pass full row
+        }}>
+          <IconComponent size={18} className="icon" />
+        </IconButton>
+      );
     }
     
     if (columnKey === "hasChavruta") {
@@ -197,15 +298,14 @@ export const GenericTable: React.FC<GenericTableProps> = ({
           ) : (
             data.map((row, idx) => (
               <tr 
-                key={idx} 
-                className={`table-row ${onRowClick ? 'clickable-row' : ''}`}
-                onClick={() => onRowClick && onRowClick(row.id)}
+                key={row.id ?? idx}
+                onClick={() => onRowClick && onRowClick(row)} // <- pass row
+                className={`table-row ${onRowClick ? 'clickable-row' : ''} ${selectedRowId === row.id ? 'selected-row' : ''}`}
               >
                 {columns.map(col => (
                   <td
                     key={col.key}
                     onClick={(e) => {
-                      // Only stop propagation if this is a column with its own click handler
                       if (col.onClick) {
                         e.stopPropagation();
                         col.onClick(row.id);
@@ -223,7 +323,7 @@ export const GenericTable: React.FC<GenericTableProps> = ({
       </table>
       <div className="pagination">
         <button
-          onClick={() => setPage(page - 1)}
+          onClick={() => handlePageChange(page - 1)}
           disabled={page === 1 || loading}
           className="pagination-button"
         >
@@ -231,7 +331,7 @@ export const GenericTable: React.FC<GenericTableProps> = ({
         </button>
         <span className="pagination-text">{page} / {totalPages || 1}</span>
         <button
-          onClick={() => setPage(page + 1)}
+          onClick={() => handlePageChange(page + 1)}
           disabled={page === totalPages || loading}
           className="pagination-button"
         >

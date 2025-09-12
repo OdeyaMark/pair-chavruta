@@ -11,13 +11,13 @@ import { width, height, title } from './modal.json';
 import { fetchUserById, saveUserChanges } from '../../../data/cmsData';
 import UserCard from '../../../components/UserCard';
 import EditUserForm from '../../../components/EditUserForm';
-import { reverseFormatUserData } from '../../../data/formatters';
+import { reverseFormatUserData, prepareDataForSaving } from '../../../data/formatters';
 import ContactPopup from '../../../components/contactPopup';
 
 interface ModalParams {
   userId?: string;
   editMode?: boolean;
-  contactMode?: boolean;  // Add this
+  contactMode?: boolean;
 }
 
 interface ModalState {
@@ -33,13 +33,11 @@ const initialModalState: ModalState = {
 };
 
 const Modal: FC = () => {
-  // Combine related state into a single object to prevent race conditions
   const [modalState, setModalState] = useState<ModalState>(initialModalState);
   const [userData, setUserData] = useState<Record<string, any> | null>(null);
   const [editedData, setEditedData] = useState<Record<string, any> | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
 
-  // Effect for initializing userId and editMode from dashboard state
   React.useEffect(() => {
     const observerResult = dashboard.observeState((params: ModalParams) => {
       if (params) {
@@ -54,7 +52,6 @@ const Modal: FC = () => {
     return () => observerResult?.disconnect?.();
   }, []);
 
-  // Update the data fetching effect to use modalState
   React.useEffect(() => {
     let isSubscribed = true;
 
@@ -81,15 +78,16 @@ const Modal: FC = () => {
     };
 
     fetchUser();
-    console.log("contact mode", modalState.contactMode);
     return () => { isSubscribed = false; };
   }, [modalState.userId]);
 
-  // Update save handler to use modalState
   const handleSave = async () => {
     if (modalState.editMode && editedData && modalState.userId) {
       try {
-        await saveUserChanges(editedData, modalState.userId);
+        // Use the new formatter function to prepare data for saving
+        const dataToSave = prepareDataForSaving(editedData);
+        
+        await saveUserChanges(dataToSave, modalState.userId);
         dashboard.closeModal();
       } catch (error) {
         console.error('Error saving user data:', error);
@@ -99,23 +97,20 @@ const Modal: FC = () => {
     }
   };
 
-  React.useEffect(() => {
-    if (modalState.contactMode && userData) {
-      console.log('Contact mode active with user data:', {
-        email: userData.email,
-        tel: userData.tel,
-        contactMode: modalState.contactMode
-      });
-    }
-  }, [modalState.contactMode, userData]);
+  const handleEditDataChange = (newData: Record<string, any> | null) => {
+    setEditedData(newData);
+  };
 
   return (
     <WixDesignSystemProvider features={{ newColorsBranding: true }}>
       <CustomModalLayout
         width={modalState.contactMode ? "400px" : width}
-        maxHeight={modalState.contactMode ? "300px" : height} // Increased from 200px to 300px
-        height={modalState.contactMode ? "400px" : undefined} // Add minHeight for contact mode
-        primaryButtonText={modalState.editMode ? "Save" : "Close"}
+        maxHeight={modalState.contactMode ? "300px" : height}
+        height={modalState.contactMode ? "400px" : undefined}
+        primaryButtonText={
+          modalState.contactMode ? "Close" : 
+          modalState.editMode ? "Save" : "Close"
+        }
         secondaryButtonText={modalState.editMode ? "Cancel" : undefined}
         secondaryButtonOnClick={modalState.editMode ? () => dashboard.closeModal() : undefined}
         onCloseButtonClick={() => dashboard.closeModal()}
@@ -134,8 +129,8 @@ const Modal: FC = () => {
             modalState.contactMode ? (
               <Box 
                 padding="5px"
-                height="100%" // Add full height to Box
-                verticalAlign="middle" // Center content vertically
+                height="100%"
+                verticalAlign="middle"
               >
                 <ContactPopup 
                   email={userData.email} 
@@ -145,7 +140,7 @@ const Modal: FC = () => {
             ) : modalState.editMode ? (
               <EditUserForm 
                 user={userData}
-                onChange={setEditedData}
+                onChange={handleEditDataChange}
               />
             ) : (
               <UserCard user={userData} />

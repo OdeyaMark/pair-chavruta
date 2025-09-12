@@ -119,15 +119,16 @@ const UserCard = React.memo<UserCardProps>(({ user }) => {
               <tr>
                 <th>Day</th>
                 <th className="text-center">Morning</th>
-                <th className="text-center">Afternoon</th>
+                <th className="text-center">Noon</th>
                 <th className="text-center">Evening</th>
+                <th className="text-center">Late Night</th>
               </tr>
             </thead>
             <tbody>
               {['sunday', 'monday', 'tuesday', 'wednesday', 'thursday'].map((day) => (
                 <tr key={day}>
                   <td className="capitalize">{day}</td>
-                  {['morning', 'afternoon', 'evening'].map((slot) => (
+                  {['morning', 'noon', 'evening', 'lateNight'].map((slot) => (
                     <td key={slot} className="text-center">
                       <div className={`time-indicator ${
                         learningTimes[day][slot] ? 'available' : 'unavailable'

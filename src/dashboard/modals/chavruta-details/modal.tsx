@@ -55,7 +55,7 @@ const Modal: FC = () => {
         onCloseButtonClick={() => dashboard.closeModal()}
         primaryButtonOnClick={() => dashboard.closeModal()}
         title={isLoading ? "Loading..." : "Chavruta Details"}
-        subtitle={isLoading ? "" : `${modalParams?.israeliParticipant?.fullName || ''} & ${modalParams.diasporaParticipant?.fullName || ''}`}
+        subtitle={isLoading ? "" : `${modalParams?.israeliParticipant?.fullName || ''} & ${modalParams?.diasporaParticipant?.fullName || ''}`}
         content={
           isLoading ? (
             <Box align="center" verticalAlign="middle" padding="20px">

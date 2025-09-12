@@ -28,6 +28,33 @@
   min-height: 48px; /* Match table row height */
 }
 
+/* Updated icon button styles - remove borders and background */
+.icon-button {
+  background: none !important;
+  border: none !important;
+  padding: 4px !important;
+  margin: 0 !important;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+  outline: none;
+}
+
+.icon-button:hover {
+  background-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+.icon-button:focus {
+  background-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+.icon-button:active {
+  background-color: rgba(0, 0, 0, 0.15) !important;
+}
+
 /* Add specific styles for action cells */
 .action-cell {
   display: flex;
@@ -162,38 +189,26 @@ td {
   color: #1d4ed8;
 }
 
-.icon-cell {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100%;
-  padding: 8px;
-}
-
 .editable-cell {
   position: relative;
-  cursor: pointer;
+  width: 100%;
 }
 
 .editable-value {
-  padding: 4px 8px;
-  border-radius: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-width: 150px;
 }
 
-.editable-value:hover {
-  background-color: #f3f4f6;
+.editable-value.disabled {
+  background-color: #f5f5f5 !important;
+  cursor: not-allowed !important;
 }
 
 .dropdown-content {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  z-index: 1000;
-  min-width: 160px;
-  background-color: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 4px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  position: absolute !important;
+  z-index: 1000 !important;
 }
 
 .dropdown-item {
@@ -202,7 +217,15 @@ td {
 }
 
 .dropdown-item:hover {
-  background-color: #f3f4f6;
+  background-color: #f5f5f5 !important;
+}
+
+.dropdown-item:last-child {
+  border-bottom: none !important;
+}
+
+.dropdown-item:hover {
+  background-color: #f3f4f6 !important;
 }
 
 .button-with-title {
@@ -244,4 +267,19 @@ td {
 
 .icon-danger {
   color: #dc2626;
+}
+
+/* Add this to your UserTable.css */
+.selected-row {
+  background-color: #e3f2fd !important; /* Light blue background */
+  border-left: 4px solid #2196f3 !important; /* Blue left border */
+}
+
+.selected-row:hover {
+  background-color: #bbdefb !important; /* Slightly darker on hover */
+}
+
+/* Optional: Add transition for smooth highlighting */
+.table-row {
+  transition: background-color 0.2s ease;
 }

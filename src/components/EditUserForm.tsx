@@ -2,90 +2,140 @@ import React, { useState, useEffect, useCallback } from 'react';
 import debounce from 'lodash/debounce';
 import { Globe, BookOpen, Calendar, User, Plus } from 'lucide-react';
 import { PreferredTracksInfo } from '../constants/tracks';
+import { 
+  initializeFormData, 
+  initializeFormLearningTimes, 
+  convertLearningTimesToServerFormat,
+  LearningTimes,
+  EnglishLevels,
+  SkillLevels,
+  LearningStyles
+} from '../data/formatters';
 import './UserCard.css';
-import { set } from 'lodash';
 
 interface EditUserFormProps {
   user: Record<string, any>;
   onChange: (updatedUser: Record<string, any>) => void;
 }
 
+// Add these missing constants
+const genderOptions = ['male', 'female', 'other'];
+const genderPrefOptions = ['male', 'female', 'no preference'];
+const chavrutaCountOptions = ['1', '2', '3', 'more than 3'];
+
+// Define the missing weekdays and timeSlots
+const weekdays = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday'] as const;
+const timeSlots = ['morning', 'noon', 'evening', 'lateNight'] as const;
+
+// Define the types
+type Weekday = typeof weekdays[number];
+type TimeSlot = typeof timeSlots[number];
+
+// Define the FormData interface
 interface FormData {
   fullName: string;
   email: string;
-  tel: string;
+  phoneNumber: string;
   gender: string;
   learningTracks: string[];
-  moreThanOneChavruta: string;
+  prefTracks: string[];
+  prefNumberOfMatches: string;
   country: string;
-  learningSkill: string;
-  levOfEn: string;
+  skillLevel: string;
+  englishLevel: string;
   learningStyle: string;
-  menOrWomen: string;
+  prefGender: string;
+  otherLanguages: string; // Add this field
   learningTimes: LearningTimes;
 }
 
-const weekdays = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday'] as const;
-type Weekday = typeof weekdays[number];
-
-const timeSlots = ['morning', 'afternoon', 'evening'] as const;
-type TimeSlot = typeof timeSlots[number];
-
-type DayTimeSlots = {
-  [key in TimeSlot]: boolean;
-};
-
-type LearningTimes = {
-  [key in Weekday]: DayTimeSlots;
-};
-
-const genderOptions = ['Male', 'Female', 'Other'];
-const learningSkillOptions = ['Beginner', 'Intermediate', 'Advanced'];
-const englishLevelOptions = ['Basic', 'Good', 'Excellent'];
-const learningStyleOptions = ['Structured', 'Flexible', 'No significant style'];
-const genderPrefOptions = ['Male', 'Female', 'No preference'];
-const chavrutaCountOptions = ['1', '2', '3', 'More than 3'];
-
 const EditUserForm: React.FC<EditUserFormProps> = ({ user, onChange }) => {
-  // Initialize form data with both the UI state and the server format
-  const initializeLearningTimes = (): LearningTimes => {
-    return weekdays.reduce((acc, day) => ({
-      ...acc,
-      [day]: {
-        morning: user[day]?.includes('Morning') || false,
-        afternoon: user[day]?.includes('Noon') || false,
-        evening: user[day]?.includes('Evening') || false,
-      }
-    }), {} as LearningTimes);
-  };
+  // Add debugging to see what's happening
+  console.log("Raw user data in EditUserForm:", user);
+  console.log("User gender:", user.gender);
+  console.log("User prefGender:", user.prefGender);
 
-  const [formData, setFormData] = useState<FormData & Record<string, any>>({
-    fullName: user.fullName || '',
-    email: user.email || '',
-    tel: user.tel || '',
-    gender: user.gender || '',
-    learningTracks: user.prefTra || [],
-    moreThanOneChavruta: user.moreThanOneChavruta || '1',
-    country: user.country || '',
-    learningSkill: user.learningSkill || '',
-    levOfEn: user.levOfEn || '',
-    learningStyle: user.learningStyle || '',
-    menOrWomen: user.menOrWomen || '',
-    learningTimes: initializeLearningTimes(),
-    // Add the server format for each day
-    ...weekdays.reduce((acc, day) => ({
-      ...acc,
-      [day]: (user[day] || []).filter(Boolean)
-    }), {} as Record<Weekday, string[]>)
+  // Use the helper function to initialize form data
+  const [formData, setFormData] = useState(() => {
+    const initialData = initializeFormData(user);
+    console.log("Initial form data:", initialData);
+    
+    // Add server format for each day
+    const serverTimeData = convertLearningTimesToServerFormat(initialData.learningTimes);
+    
+    // Handle gender fields specifically if they're not working
+    const genderValue = Array.isArray(user.gender) ? user.gender[0] || '' : (user.gender || '');
+    const prefGenderValue = Array.isArray(user.prefGender) ? user.prefGender[0] || '' : (user.prefGender || '');
+    
+    console.log("Direct gender handling:", { genderValue, prefGenderValue });
+    
+    return {
+      ...initialData,
+      ...serverTimeData,
+      // Override gender fields if needed
+      gender: genderValue,
+      prefGender: prefGenderValue,
+    };
   });
+
+  // Add debugging to see current form state
+  console.log("Current formData:", formData);
+  console.log("Current formData.gender:", formData.gender);
+  console.log("Current formData.prefGender:", formData.prefGender);
 
   const [showTrackSelector, setShowTrackSelector] = useState(false);
 
+  // Helper function to convert string value back to index
+  const convertValueToIndex = (value: string, array: string[]): number => {
+    const index = array.indexOf(value);
+    return index === -1 ? 0 : index;
+  };
+
   const handleInputChange = (field: keyof FormData, value: any) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    setFormData(prev => {
+      const newData = {
+        ...prev,
+        [field]: value // Keep the display value for the UI
+      };
+
+      // Convert certain fields back to numeric indices for server format
+      const isIsraeli = prev.country === 'Israel';
+      
+      // Add server format fields
+      const serverData = {
+        ...newData,
+        // Convert gender back to array format if needed
+        ...(field === 'gender' && {
+          gender: [value] // Convert back to array format
+        }),
+        // Convert prefGender back to array format if needed
+        ...(field === 'prefGender' && {
+          prefGender: [value] // Convert back to array format
+        }),
+        // Convert skill level back to index - use different field names
+        ...(field === 'skillLevel' && {
+          // Store index in the correct server field
+          ...(isIsraeli 
+            ? { desiredSkillLevel: convertValueToIndex(value, SkillLevels) }
+            : { skillLevelIndex: convertValueToIndex(value, SkillLevels) }
+          )
+        }),
+        // Convert English level back to index - use different field names
+        ...(field === 'englishLevel' && {
+          // Store index in the correct server field
+          ...(isIsraeli 
+            ? { englishLevelIndex: convertValueToIndex(value, EnglishLevels) }
+            : { desiredEnglishLevel: convertValueToIndex(value, EnglishLevels) }
+          )
+        }),
+        // Convert learning style back to index
+        ...(field === 'learningStyle' && {
+          prefLearningStyle: convertValueToIndex(value, LearningStyles)
+        })
+      };
+
+      return serverData;
+    });
   };
 
   // Create a debounced version of onChange
@@ -108,12 +158,6 @@ const EditUserForm: React.FC<EditUserFormProps> = ({ user, onChange }) => {
 
   // Convert the time slots to the format that the server expects
   const handleTimeSlotToggle = (day: Weekday, slot: TimeSlot) => {
-    const slotMap: Record<TimeSlot, string> = {
-      'morning': 'Morning',
-      'afternoon': 'Noon',
-      'evening': 'Evening'
-    };
-
     setFormData(prev => {
       const newTimes = {
         ...prev.learningTimes,
@@ -123,15 +167,13 @@ const EditUserForm: React.FC<EditUserFormProps> = ({ user, onChange }) => {
         }
       } as LearningTimes;
 
-      // For each day, convert boolean time slots to array format for the server
-      const dayArray = (Object.entries(newTimes[day]) as [TimeSlot, boolean][])
-        .filter(([_, isSelected]) => isSelected)
-        .map(([timeSlot]) => slotMap[timeSlot]);
+      // Use the helper function to convert to server format
+      const serverTimeData = convertLearningTimesToServerFormat(newTimes);
 
       return {
         ...prev,
         learningTimes: newTimes,
-        [day]: dayArray // This adds the day's array directly to formData
+        ...serverTimeData
       };
     });
   };
@@ -191,8 +233,8 @@ const EditUserForm: React.FC<EditUserFormProps> = ({ user, onChange }) => {
             <input
               type="tel"
               className="editable-value"
-              value={formData.tel}
-              onChange={(e) => handleInputChange('tel', e.target.value)}
+              value={formData.phoneNumber}
+              onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
             />
           </div>
           <div className="label-value-item">
@@ -217,6 +259,16 @@ const EditUserForm: React.FC<EditUserFormProps> = ({ user, onChange }) => {
               onChange={(e) => handleInputChange('country', e.target.value)}
             />
           </div>
+          <div className="label-value-item">
+            <span className="item-label">Other Languages:</span>
+            <input
+              type="text"
+              className="editable-value"
+              value={formData.otherLanguages}
+              onChange={(e) => handleInputChange('otherLanguages', e.target.value)}
+              placeholder="Enter other languages spoken"
+            />
+          </div>
         </div>
       </div>
 
@@ -228,41 +280,54 @@ const EditUserForm: React.FC<EditUserFormProps> = ({ user, onChange }) => {
         </div>
         <div className="label-value-grid">
           <div className="label-value-item">
-            <span className="item-label">Learning Stage:</span>
-            <input
-              type="text"
+            <span className="item-label">
+              {user.country === 'Israel' ? 'Desired Learning Skill' : 'Learning Skill'}:
+            </span>
+            <select
               className="editable-value"
-              value={formData.learningSkill}
-              onChange={(e) => handleInputChange('learningSkill', e.target.value)}
-              placeholder="Enter learning stage"
-            />
+              value={formData.skillLevel}
+              onChange={(e) => handleInputChange('skillLevel', e.target.value)}
+            >
+              <option value="">Select skill level</option>
+              {SkillLevels.map((level, index) => (
+                <option key={index} value={level}>{level}</option>
+              ))}
+            </select>
           </div>
           <div className="label-value-item">
-            <span className="item-label">English Level:</span>
-            <input
-              type="text"
+            <span className="item-label">
+              {user.country === 'Israel' ? 'English Level' : 'Desired English Level'}:
+            </span>
+            <select
               className="editable-value"
-              value={formData.levOfEn}
-              onChange={(e) => handleInputChange('levOfEn', e.target.value)}
-              placeholder="Enter English level"
-            />
+              value={formData.englishLevel}
+              onChange={(e) => handleInputChange('englishLevel', e.target.value)}
+            >
+              <option value="">Select English level</option>
+              {EnglishLevels.map((level, index) => (
+                <option key={index} value={level}>{level}</option>
+              ))}
+            </select>
           </div>
           <div className="label-value-item">
             <span className="item-label">Learning Style:</span>
-            <input
-              type="text"
+            <select
               className="editable-value"
               value={formData.learningStyle}
               onChange={(e) => handleInputChange('learningStyle', e.target.value)}
-              placeholder="Enter learning style"
-            />
+            >
+              <option value="">Select learning style</option>
+              {LearningStyles.map((style, index) => (
+                <option key={index} value={style}>{style}</option>
+              ))}
+            </select>
           </div>
           <div className="label-value-item">
             <span className="item-label">Preferred Gender:</span>
             <select
               className="editable-value"
-              value={formData.menOrWomen}
-              onChange={(e) => handleInputChange('menOrWomen', e.target.value)}
+              value={formData.prefGender}
+              onChange={(e) => handleInputChange('prefGender', e.target.value)}
             >
               <option value="">Select preference</option>
               {genderPrefOptions.map(option => (
@@ -274,8 +339,8 @@ const EditUserForm: React.FC<EditUserFormProps> = ({ user, onChange }) => {
             <span className="item-label">Number of Chavrutas:</span>
             <select
               className="editable-value"
-              value={formData.moreThanOneChavruta}
-              onChange={(e) => handleInputChange('moreThanOneChavruta', e.target.value)}
+              value={formData.prefNumberOfMatches}
+              onChange={(e) => handleInputChange('prefNumberOfMatches', e.target.value)}
             >
               <option value="">Select number</option>
               {chavrutaCountOptions.map(option => (
@@ -300,29 +365,29 @@ const EditUserForm: React.FC<EditUserFormProps> = ({ user, onChange }) => {
           </button>
         </div>
         <TrackList 
-        tracks={formData.learningTracks} 
+        tracks={formData.prefTracks} 
         onRemove={(id) => {
-          const newTracks = formData.learningTracks.filter(trackId => trackId !== id);
+          const newTracks = formData.prefTracks.filter(trackId => trackId !== id);
           setFormData(prev => ({
             ...prev,
-            learningTracks: newTracks,
-            prefTra: newTracks // Update both the UI state and server format
+            prefTracks: newTracks,
+             // Update both the UI state and server format
           }));
         }} />
         {showTrackSelector && (
           <div className="track-selector">
             {Object.values(PreferredTracksInfo)
-              .filter(track => track.id && !formData.learningTracks.includes(track.id))
+              .filter(track => track.id && !formData.prefTracks.includes(track.id))
               .map(track => (
                 <button
                   key={track.id}
                   className="track-option"
                   onClick={() => {
-                    const newTracks = [...formData.learningTracks, track.id!];
+                    const newTracks = [...formData.prefTracks, track.id!];
                     setFormData(prev => ({
                       ...prev,
                       learningTracks: newTracks,
-                      prefTra: newTracks // Update both the UI state and server format
+                      prefTracks: newTracks // Fixed: was "prefTra"
                     }));
                     setShowTrackSelector(false);
                   }}
@@ -334,7 +399,7 @@ const EditUserForm: React.FC<EditUserFormProps> = ({ user, onChange }) => {
         )}
       </div>
 
-      {/* Learning Times Section - Reusing existing code */}
+      {/* Learning Times Section */}
       <div className="card-section">
         <div className="section-header">
           <div className="section-icon"><Calendar size={20} /></div>
@@ -346,8 +411,9 @@ const EditUserForm: React.FC<EditUserFormProps> = ({ user, onChange }) => {
               <tr>
                 <th>Day</th>
                 <th className="text-center">Morning</th>
-                <th className="text-center">Afternoon</th>
+                <th className="text-center">Noon</th>
                 <th className="text-center">Evening</th>
+                <th className="text-center">Late Night</th>
               </tr>
             </thead>
             <tbody>

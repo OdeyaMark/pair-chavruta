@@ -1,0 +1,7 @@
+{
+  "$schema": "https://dev.wix.com/wix-cli/schemas/dashboard-modal.json",
+  "id": "9ec1d64e-fb69-4596-955c-0eadbd4c611d",
+  "title": "choose track",
+  "width": 550,
+  "height": 600
+}

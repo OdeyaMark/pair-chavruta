@@ -1,0 +1,7 @@
+{
+  "$schema": "https://dev.wix.com/wix-cli/schemas/dashboard-modal.json",
+  "id": "66aac142-762d-4489-a349-94be53e515c4",
+  "title": "activate pair",
+  "width": 550,
+  "height": 600
+}

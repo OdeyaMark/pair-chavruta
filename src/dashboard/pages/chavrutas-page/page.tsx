@@ -4,7 +4,11 @@ import { Mail, Trash2, Eye, StickyNote } from 'lucide-react';
 import '@wix/design-system/styles.global.css';
 import { GenericTable, TableColumn } from '../../../components/GenericTable';
 import { dashboard } from '@wix/dashboard';
-import {fetchChavrutasFromCMS,  updateChavrutaBase } from '../../../data/cmsData';
+import { 
+  fetchChavrutasFromCMS, 
+  deleteChavrutaAndUpdateUsers,
+  updateChavrutaBase
+} from '../../../data/cmsData';
 import { PairStatus, PairStatusLabels } from '../../../constants/status';
 import { PreferredTracks, PreferredTracksInfo } from '../../../constants/tracks';
 
@@ -32,101 +36,54 @@ interface ChavrutaRow {
 }
 
 const DashboardPage: FC = () => {
-  // Initialize from sessionStorage with JSX parsing
-  const [activeChavrutas, setActiveChavrutas] = useState<ChavrutaRow[]>(() => {
-    try {
-      const stored = sessionStorage.getItem('activeChavrutas');
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  });
-  
-  const [archivedChavrutas, setArchivedChavrutas] = useState<ChavrutaRow[]>(() => {
-    try {
-      const stored = sessionStorage.getItem('archivedChavrutas');
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  const [initialFetch, setInitialFetch] = useState(() => {
-    const hasActiveData = sessionStorage.getItem('activeChavrutas');
-    const hasArchivedData = sessionStorage.getItem('archivedChavrutas');
-    return !(hasActiveData || hasArchivedData);
-  });
-
-  // Persist data with JSX element recreation
-  const persistActiveChavrutas = useCallback((data: ChavrutaRow[]) => {
-    // Remove JSX elements before storing
-    const dataToStore = data.map(item => ({
-      ...item,
-      details: null,
-      mail: null,
-      delete: null,
-      notes: null
-    }));
-    sessionStorage.setItem('activeChavrutas', JSON.stringify(dataToStore));
-    
-    // Recreate JSX elements for current state
-    const dataWithJSX = data.map(item => ({
-      ...item,
-      details: <div className="icon-cell"><Eye size={20} className="action-icon" /></div>,
-      mail: <div className="icon-cell"><Mail size={20} className="action-icon" /></div>,
-      delete: <div className="icon-cell"><Trash2 size={20} className="action-icon" /></div>
-    }));
-    
-    setActiveChavrutas(dataWithJSX);
-  }, []);
-
-  const persistArchivedChavrutas = useCallback((data: ChavrutaRow[]) => {
-    const dataToStore = data.map(item => ({
-      ...item,
-      details: null,
-      notes: null
-    }));
-    sessionStorage.setItem('archivedChavrutas', JSON.stringify(dataToStore));
-    
-    const dataWithJSX = data.map(item => ({
-      ...item,
-      notes: <div className="icon-cell"><StickyNote size={20} className="action-icon" /></div>
-    }));
-    
-    setArchivedChavrutas(dataWithJSX);
-  }, []);
-
+  // State for data and UI
+  const [activeChavrutas, setActiveChavrutas] = useState<ChavrutaRow[]>([]);
+  const [archivedChavrutas, setArchivedChavrutas] = useState<ChavrutaRow[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedYear, setSelectedYear] = useState<string>('');
   const [selectedTrack, setSelectedTrack] = useState<string>('');
   const [selectedStatus, setSelectedStatus] = useState<string>('');
-  const [showArchived, setShowArchived] = useState(false); // Add this
+  const [showArchived, setShowArchived] = useState(false);
+  
+  // Search and pagination state
+  const [search, setSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
 
-  // Memoized current data based on toggle
-  const allChavrutas = useMemo(() => {
-    return showArchived ? archivedChavrutas : activeChavrutas;
-  }, [showArchived, activeChavrutas, archivedChavrutas]);
-
-  // Fetch data once when component mounts
+  // Simple data fetching on component mount
   useEffect(() => {
-    if (initialFetch) {
-      fetchInitialData();
-    }
-  }, [initialFetch]);
+    fetchInitialData();
+  }, []);
 
-  // Update fetchInitialData to separate active and archived
+  // Add logging wrapper for setActiveChavrutas
+  const setActiveChavrutasWithLogging = (newValue: any) => {
+    console.log('=== SETTING ACTIVE CHAVRUTAS ===');
+    console.log('New value:', newValue);
+    console.log('Stack trace:', new Error().stack);
+    setActiveChavrutas(newValue);
+  };
+
+  // Add logging wrapper for setArchivedChavrutas  
+  const setArchivedChavrutasWithLogging = (newValue: any) => {
+    console.log('=== SETTING ARCHIVED CHAVRUTAS ===');
+    console.log('New value:', newValue);
+    console.log('Stack trace:', new Error().stack);
+    setArchivedChavrutas(newValue);
+  };
+
+  // Update fetchInitialData to use the stored data
   const fetchInitialData = async () => {
     try {
-      console.log('Fetching initial data...');
+      setLoading(true);
       const data = await fetchChavrutasFromCMS();
-
       const active: ChavrutaRow[] = [];
       const archived: ChavrutaRow[] = [];
-
+      
       data.forEach(item => {
         const formattedItem: ChavrutaRow = {
           id: item._id,
-          israeliParticipant: item.fromIsraelId?.fullName || 'N/A',
-          diasporaParticipant: item.fromWorldId?.fullName || 'N/A',
+          israeliParticipant: item.newFromIsraelId?.fullName || 'N/A',
+          diasporaParticipant: item.newFromWorldId?.fullName || 'N/A',
           creationDate: new Date(item.dateOfCreate).toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'short',
@@ -137,97 +94,49 @@ const DashboardPage: FC = () => {
           status: PairStatusLabels[Number(item.status) as PairStatus] || PairStatusLabels[PairStatus.Default],
           matchDate: item.dateOfCreate,
           participantData: {
-            israeli: item.fromIsraelId || {},
-            diaspora: item.fromWorldId || {}
-          }
+            israeli: item.newFromIsraelId || {},
+            diaspora: item.newFromWorldId || {}
+          },
+          // Create JSX elements directly here - no serialization issues
+          details: <div className="icon-cell"><Eye size={20} className="action-icon" /></div>,
+          mail: <div className="icon-cell"><Mail size={20} className="action-icon" /></div>,
+          delete: <div className="icon-cell"><Trash2 size={20} className="action-icon" /></div>,
+          notes: <div className="icon-cell"><StickyNote size={20} className="action-icon" /></div>
         };
 
         if (item.isDeleted) {
-          // Add archived-specific properties
           formattedItem.deleteDate = item.dateOfDelete ? new Date(item.dateOfDelete).toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'short',
             day: 'numeric'
           }) : 'Unknown';
           formattedItem.deleteReason = item.deleteReason || '';
-          formattedItem.details = <div className="icon-cell"><Eye size={20} className="action-icon" /></div>;
-          formattedItem.notes = <div className="icon-cell"><StickyNote size={20} className="action-icon" /></div>;
           archived.push(formattedItem);
         } else {
-          // Add active-specific properties
-          formattedItem.details = <div className="icon-cell"><Eye size={20} className="action-icon" /></div>;
-          formattedItem.mail = <div className="icon-cell"><Mail size={20} className="action-icon" /></div>;
-          formattedItem.delete = <div className="icon-cell"><Trash2 size={20} className="action-icon" /></div>;
           active.push(formattedItem);
         }
       });
 
-      persistActiveChavrutas(active);
-      persistArchivedChavrutas(archived);
-      setInitialFetch(false);
+      console.log('Setting active chavrutas:', active.length);
+      console.log('Setting archived chavrutas:', archived.length);
+      
+      setActiveChavrutasWithLogging(active);
+      setArchivedChavrutasWithLogging(archived);
+      setLoading(false);
     } catch (error) {
       console.error('Error fetching initial data:', error);
+      setLoading(false);
     }
   };
 
-  // Update useEffect for initial fetch to depend on tracks
-  useEffect(() => {
-    if (initialFetch) {
-      fetchInitialData();
-    }
-  }, [initialFetch]);
-
-  // Add handler for notes click
-  const handleNotesClick = (id: string) => {
-    const chavruta = allChavrutas.find(item => item.id === id);
-    if (chavruta) {
-      dashboard.openModal({
-        modalId: "87855b31-290a-42c2-804a-7b776bdb8f5b", // Your notes modal ID
-        params: { 
-          userId: id,
-          initialNote: chavruta.deleteReason || '',
-          readOnly: true,
-          title: "Delete Reason"
-        }
-      });
-    }
-  };
-
-  const handleMailClick = (id: string) => {
-    
-  };
-
-  // Update handleDeleteClick to open the delete modal
-  const handleDeleteClick = (id: string) => {
-    dashboard.openModal({
-      modalId: "81bfe4af-e5cd-434d-bf31-3641deb7cbd7", // Make sure this matches your delete modal ID
-      params: {
-        pairId: id,
-        onDelete: async (pairId: string, reason: string) => {
-          await handleDeletePair(pairId, reason);
-        }
-      }
-    });
-  };
-
-  // Replace the existing handleDeletePair with this useCallback version
+  // Simplified handlers - optimistic updates for immediate UI feedback
   const handleDeletePair = useCallback(async (id: string, deleteReason: string) => {
     try {
-      
       const chavrutaToDelete = activeChavrutas.find(chavruta => chavruta.id === id);
       if (!chavrutaToDelete) {
         console.error('Chavruta not found in active list');
-        console.log('Available active IDs:', activeChavrutas.map(c => c.id));
         return;
       }
-
-      // Update database
-      await updateChavrutaBase(id, (chavruta) => ({
-        ...chavruta,
-        isDeleted: true,
-        dateOfDelete: new Date().toISOString(),
-        deleteReason: deleteReason
-      }));
 
       // Create archived version
       const archivedChavruta: ChavrutaRow = {
@@ -238,24 +147,104 @@ const DashboardPage: FC = () => {
           day: 'numeric'
         }),
         deleteReason: deleteReason,
-        notes: <div className="icon-cell"><StickyNote size={20} className="action-icon" /></div>
       };
 
-      // Update states
-      setActiveChavrutas(prev => {
-        const filtered = prev.filter(chavruta => chavruta.id !== id);
-        return filtered;
-      });
+      // Optimistic update - immediate UI feedback
+      setActiveChavrutas(prev => prev.filter(chavruta => chavruta.id !== id));
+      setArchivedChavrutas(prev => [...prev, archivedChavruta]);
 
-      setArchivedChavrutas(prev => {
-        const updated = [...prev, archivedChavruta];
-        return updated;
-      });
+      // Update database
+      await deleteChavrutaAndUpdateUsers(id);
 
     } catch (error) {
       console.error('Error in handleDeletePair:', error);
+      // TODO: Add error handling and revert optimistic update if needed
     }
-  }, [activeChavrutas]); // Add activeChavrutas as dependency
+  }, [activeChavrutas]);
+
+  // const [selectedYear, setSelectedYear] = useState<string>('');
+  // const [selectedTrack, setSelectedTrack] = useState<string>('');
+  // const [selectedStatus, setSelectedStatus] = useState<string>('');
+  // const [showArchived, setShowArchived] = useState(false); // Add this
+
+  // Current data based on toggle
+  const currentChavrutas = useMemo(() => {
+    return showArchived ? archivedChavrutas : activeChavrutas;
+  }, [showArchived, activeChavrutas, archivedChavrutas]);
+
+  // Filtered and paginated data for immediate display
+  const filteredAndPaginatedData = useMemo(() => {
+    let filteredData = [...currentChavrutas];
+
+    // Apply filters
+    if (selectedYear) {
+      filteredData = filteredData.filter(item => 
+        new Date(item.matchDate).getFullYear().toString() === selectedYear
+      );
+    }
+
+    if (selectedTrack) {
+      filteredData = filteredData.filter(item => item.track === selectedTrack);
+    }
+
+    if (selectedStatus) {
+      filteredData = filteredData.filter(item => item.status === selectedStatus);
+    }
+
+    if (search) {
+      const searchTerm = search.toLowerCase();
+      filteredData = filteredData.filter(item => 
+        (item.israeliParticipant && item.israeliParticipant.toLowerCase().includes(searchTerm)) ||
+        (item.diasporaParticipant && item.diasporaParticipant.toLowerCase().includes(searchTerm))
+      );
+    }
+
+    // Pagination
+    const startIdx = (currentPage - 1) * pageSize;
+    const paginatedData = filteredData.slice(startIdx, startIdx + pageSize);
+
+    return {
+      data: paginatedData,
+      total: filteredData.length
+    };
+  }, [currentChavrutas, selectedYear, selectedTrack, selectedStatus, search, currentPage]);
+
+  // Handle search and pagination events
+  const handleSearch = useCallback((searchTerm: string, page: number, size: number) => {
+    setSearch(searchTerm);
+    setCurrentPage(page);
+  }, []);
+
+  // Add handler for notes click
+  const handleNotesClick = (row: ChavrutaRow) => {
+    const id = row.id;
+    dashboard.openModal({
+      modalId: "87855b31-290a-42c2-804a-7b776bdb8f5b",
+      params: { 
+        userId: id,
+        initialNote: row.deleteReason || '',
+        readOnly: true,
+        title: "Delete Reason"
+      }
+    });
+  };
+
+  const handleMailClick = (row: ChavrutaRow) => {
+    // implement mail logic using row.id or row.participantData
+  };
+
+  // Update handleDeleteClick to open the delete modal
+  const handleDeleteClick = (row: ChavrutaRow) => {
+    dashboard.openModal({
+      modalId: "81bfe4af-e5cd-434d-bf31-3641deb7cbd7",
+      params: {
+        pairId: row.id,
+        onDelete: async (pairId: string, reason: string) => {
+          await handleDeletePair(pairId, reason);
+        }
+      }
+    });
+  };
 
   // Update the handleStatusChange function
   const handleStatusChange = async (rowId: string, newStatus: string) => {
@@ -289,6 +278,7 @@ const DashboardPage: FC = () => {
   // Update handleTrackChange function
   const handleTrackChange = async (rowId: string, newTrack: string) => {
     try {
+      console.log('Changing track for', rowId, 'to', newTrack);
       // Find track ID using PreferredTracksInfo
       const trackId = Object.values(PreferredTracksInfo).find(t => t.trackEn === newTrack)?.id;
       if (!trackId) {
@@ -322,20 +312,24 @@ const DashboardPage: FC = () => {
       
 
   // Update the handleDetailsClick function
-  const handleDetailsClick = (id: string) => {
-    const chavruta = allChavrutas.find(item => item.id === id);
-    if (chavruta) {
-      dashboard.openModal({
-        modalId: "c83c7139-5b30-4e82-be8f-6870568f6ee0",
-        params: { 
-          israeliParticipant: chavruta.participantData.israeli,
-          diasporaParticipant: chavruta.participantData.diaspora,
-          chavrutaId: id,
-          initialNote: chavruta.note // Pass the note
-        }
-      });
+  const handleDetailsClick = useCallback((row: any, e?: React.MouseEvent) => {
+    if (e) { e.stopPropagation(); }
+    console.log('handleDetailsClick called', { id: row?.id, activeLen: activeChavrutas.length, archivedLen: archivedChavrutas.length, currentLen: currentChavrutas.length });
+    // use the provided row directly (no lookup)
+    if (!row) {
+      console.error('No row provided to handleDetailsClick');
+      return;
     }
-  };
+    dashboard.openModal({
+      modalId: 'c83c7139-5b30-4e82-be8f-6870568f6ee0',
+      params: {
+        israeliParticipant: row.participantData?.israeli,
+        diasporaParticipant: row.participantData?.diaspora,
+        chavrutaId: row.id,
+        initialNote: row.note
+      }
+    });
+  }, [activeChavrutas, archivedChavrutas, currentChavrutas]);
 
   // Dynamic columns based on archive mode
   const columns: TableColumn[] = useMemo(() => {
@@ -367,7 +361,7 @@ const DashboardPage: FC = () => {
         { 
           key: "notes",
           label: "",
-          onClick: (id: string) => handleNotesClick(id)
+          onClick: (row: ChavrutaRow) => handleNotesClick(row)
         }
       ];
     } else {
@@ -389,17 +383,17 @@ const DashboardPage: FC = () => {
         { 
           key: "details",
           label: "",
-          onClick: (id: string) => handleDetailsClick(id)
+          onClick: (row: ChavrutaRow) => handleDetailsClick(row)
         },
         { 
           key: "mail",
           label: "",
-          onClick: handleMailClick
+          onClick: (row: ChavrutaRow) => handleMailClick(row)
         },
         { 
           key: "delete",
           label: "",
-          onClick: handleDeleteClick
+          onClick: (row: ChavrutaRow) => handleDeleteClick(row)
         }
       ];
     }
@@ -407,64 +401,31 @@ const DashboardPage: FC = () => {
 
   // Update filters to work with current data
   const filters = useMemo(() => {
-    const years = Array.from(new Set(allChavrutas.map(item => 
+    const years = Array.from(new Set(currentChavrutas.map((item: ChavrutaRow) => 
       new Date(item.matchDate).getFullYear().toString()
     ))).sort();
 
-    const tracks = Array.from(new Set(allChavrutas.map(item => item.track))).sort();
+    const tracks = Array.from(new Set(currentChavrutas.map((item: ChavrutaRow) => item.track))).sort();
     
+    // Use display labels as both ID and value
     const statuses = Object.values(PairStatus)
       .filter(status => typeof status === 'number')
-      .map(status => ({
-        id: PairStatusLabels[status as PairStatus],
-        value: PairStatusLabels[status as PairStatus]
-      }));
+      .map(status => {
+        const label = PairStatusLabels[status as PairStatus];
+        return {
+          id: label, // Use label as ID
+          value: label
+        };
+      });
 
     return {
       years: years.map(year => ({ id: year, value: year })),
       tracks: tracks.map(track => ({ id: track, value: track })),
       statuses
     };
-  }, [allChavrutas]);
+  }, [currentChavrutas]);
 
-  // Update fetchChavrutas to use the stored data
-  const fetchChavrutas = async (search: string, page: number, pageSize: number) => {
-    let filteredData = [...allChavrutas];
-
-    // Apply filters
-    if (selectedYear) {
-      filteredData = filteredData.filter(c => 
-        new Date(c.matchDate).getFullYear().toString() === selectedYear
-      );
-    }
-
-    if (selectedTrack) {
-      filteredData = filteredData.filter(c => c.track === selectedTrack);
-    }
-
-    if (selectedStatus) {
-      filteredData = filteredData.filter(c => c.status === selectedStatus);
-    }
-
-    // Filter by search
-    if (search) {
-      filteredData = filteredData.filter(c => 
-        c?.israeliParticipant?.toLowerCase().includes(search.toLowerCase()) ||
-        c?.diasporaParticipant?.toLowerCase().includes(search.toLowerCase()) ||
-        c?.track?.toLowerCase().includes(search.toLowerCase())
-      );
-    }
-
-    // Pagination
-    const start = (page - 1) * pageSize;
-    const end = start + pageSize;
-    return {
-      data: filteredData.slice(start, end),
-      total: filteredData.length,
-    };
-  };
-
-
+  
   return (
     <WixDesignSystemProvider features={{ newColorsBranding: true }}>
       <Page>
@@ -524,7 +485,7 @@ const DashboardPage: FC = () => {
                       { id: '', value: 'All Tracks' },
                       ...filters.tracks
                     ]}
-                    selectedId={selectedTrack}
+                    selectedId={selectedTrack} // Use the display value directly
                     onSelect={(option) => setSelectedTrack(option?.id?.toString() || '')}
                   />
                 </div>
@@ -535,7 +496,7 @@ const DashboardPage: FC = () => {
                       { id: '', value: 'All Statuses' },
                       ...filters.statuses
                     ]}
-                    selectedId={selectedStatus}
+                    selectedId={selectedStatus} // Use the display value directly
                     onSelect={(option) => setSelectedStatus(option?.id?.toString() || '')}
                   />
                 </div>
@@ -568,7 +529,10 @@ const DashboardPage: FC = () => {
             </div>
             <GenericTable 
               columns={columns} 
-              fetchData={fetchChavrutas}
+              data={filteredAndPaginatedData.data}
+              total={filteredAndPaginatedData.total}
+              loading={loading}
+              onSearch={handleSearch}
               pageSize={10}
             />
           </div>
