@@ -86,8 +86,8 @@ interface DropdownState {
 }
 
 export const GenericTable: React.FC<GenericTableProps> = ({ 
-  columns, 
-  data,
+  columns = [], // Add default empty array
+  data = [], // Add default empty array
   total = 0,
   loading = false,
   onSearch,
@@ -149,7 +149,7 @@ export const GenericTable: React.FC<GenericTableProps> = ({
           maxHeight: '200px',
           overflowY: 'auto'
         }}>
-          {options.map((option) => (
+          {(options || []).map((option) => (
             <div
               key={option.value}
               className="dropdown-item"
@@ -193,7 +193,7 @@ export const GenericTable: React.FC<GenericTableProps> = ({
     }
 
     if (editableConfig && editableConfig.options && editableConfig.onSelect) {
-      const options = editableConfig.options;
+      const options = editableConfig.options || []; // Add safety check
       
       // Get current selected value or default to first option
       const currentValue = value || '';
@@ -268,7 +268,11 @@ export const GenericTable: React.FC<GenericTableProps> = ({
     return value;
   };
 
-  const totalPages = Math.ceil(total / pageSize);
+  // Add safety checks for calculations
+  const safeTotal = typeof total === 'number' ? total : 0;
+  const safePageSize = typeof pageSize === 'number' && pageSize > 0 ? pageSize : DEFAULT_PAGE_SIZE;
+  const totalPages = Math.ceil(safeTotal / safePageSize);
+  const safeData = Array.isArray(data) ? data : [];
 
   return (
     <div className="table-container">
@@ -281,7 +285,7 @@ export const GenericTable: React.FC<GenericTableProps> = ({
           className="search-input"
         />
         <span className="results-count">
-          {loading ? "Loading..." : `${total} results`}
+          {loading ? "Loading..." : `${safeTotal} results`}
         </span>
       </div>
       <table className="table">
@@ -293,27 +297,27 @@ export const GenericTable: React.FC<GenericTableProps> = ({
           </tr>
         </thead>
         <tbody>
-          {data.length === 0 ? (
+          {safeData.length === 0 ? (
             <tr><td colSpan={columns.length} className="no-data">No data found.</td></tr>
           ) : (
-            data.map((row, idx) => (
+            safeData.map((row, idx) => (
               <tr 
-                key={row.id ?? idx}
+                key={row?.id ?? idx}
                 onClick={() => onRowClick && onRowClick(row)} // <- pass row
-                className={`table-row ${onRowClick ? 'clickable-row' : ''} ${selectedRowId === row.id ? 'selected-row' : ''}`}
+                className={`table-row ${onRowClick ? 'clickable-row' : ''} ${selectedRowId === row?.id ? 'selected-row' : ''}`}
               >
                 {columns.map(col => (
                   <td
                     key={col.key}
                     onClick={(e) => {
-                      if (col.onClick) {
+                      if (col.onClick && row?.id) {
                         e.stopPropagation();
                         col.onClick(row.id);
                       }
                     }}
                     className={col.onClick ? 'clickable' : ''}
                   >
-                    {renderCellContent(col.key, row[col.key], row)}
+                    {renderCellContent(col.key, row?.[col.key], row)}
                   </td>
                 ))}
               </tr>
@@ -332,7 +336,7 @@ export const GenericTable: React.FC<GenericTableProps> = ({
         <span className="pagination-text">{page} / {totalPages || 1}</span>
         <button
           onClick={() => handlePageChange(page + 1)}
-          disabled={page === totalPages || loading}
+          disabled={page === totalPages || loading || totalPages === 0}
           className="pagination-button"
         >
           Next

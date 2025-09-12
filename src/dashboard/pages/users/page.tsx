@@ -36,8 +36,6 @@ const DashboardPage: FC = () => {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [currentPage, setCurrentPage] = useState(1); // Add current page state
-  const [totalUsers, setTotalUsers] = useState(0); // Add total count state
   
   // UI state
   const [showArchived, setShowArchived] = useState(false);
@@ -53,14 +51,15 @@ const DashboardPage: FC = () => {
     email: '',
     tel: ''
   });
+  const [currentPage, setCurrentPage] = useState(1);
+    const pageSize = 10;
 
   // Fetch data once and when showArchived changes
   useEffect(() => {
     fetchInitialData();
   }, [showArchived]);
 
-  // Update fetchInitialData to handle pagination
-  const fetchInitialData = async (page: number = 1, search: string = '') => {
+  const fetchInitialData = async () => {
     try {
       setLoading(true);
       console.info('Fetching users data...');
@@ -84,9 +83,7 @@ const DashboardPage: FC = () => {
         registrationYear: new Date(item.dateOfRegistered).getFullYear().toString()
       }));
 
-      // Store all users and total count
       setUsers(formattedUsers);
-      setTotalUsers(formattedUsers.length); // Set total count
       setLoading(false);
       console.log('Users loaded:', formattedUsers.length, 'items');
     } catch (error) {
@@ -94,19 +91,6 @@ const DashboardPage: FC = () => {
       setLoading(false);
     }
   };
-
-  // Update useEffect to pass parameters
-  useEffect(() => {
-    fetchInitialData(currentPage, searchTerm);
-  }, [showArchived, currentPage]); // Remove searchTerm from dependencies since it's handled by onSearch
-
-  // Handle search with pagination reset
-  const handleSearch = useCallback((search: string, page: number, pageSize: number) => {
-    setSearchTerm(search);
-    setCurrentPage(page);
-    // You could implement server-side search here if needed
-    // For now, we'll handle it client-side with displayData
-  }, []);
 
   // Computed filtered data - updates immediately when users or filters change
   const displayData = useMemo(() => {
@@ -134,16 +118,16 @@ const DashboardPage: FC = () => {
       );
     }
 
-    return filtered;
+     const startIdx = (currentPage - 1) * pageSize;
+    const paginatedData = filtered.slice(startIdx, startIdx + pageSize);
+
+    return {
+      data: paginatedData,
+      total: filtered.length
+    };
   }, [users, selectedYear, selectedLocation, selectedHasChavruta, searchTerm]);
 
-  // Computed paginated data - slice the filtered data for pagination
-  const paginatedData = useMemo(() => {
-    const startIndex = (currentPage - 1) * 10; // Assuming page size of 10
-    const endIndex = startIndex + 10;
-    return displayData.slice(startIndex, endIndex);
-  }, [displayData, currentPage]);
-
+ 
   // Event handlers that accept row objects
   const handleDetailsClick = useCallback((row: UserRow) => {
     console.log("Opening modal for user ID:", row.id);
@@ -382,15 +366,14 @@ const DashboardPage: FC = () => {
                 )}
               </Box>
 
-              {/* Table Section - Updated to use pagination */}
+              {/* Table Section - Updated to use direct data passing */}
               <GenericTable 
                 columns={columns} 
-                data={paginatedData}                    // Use paginated data
-                total={displayData.length}              // Use filtered total for pagination
+                data={displayData.data}                    // Direct data passing
+                total={displayData.total}           // Total for pagination
                 loading={loading}
-                onSearch={handleSearch}                 // Handle search with pagination
-                pageSize={10}                           // Set page size
-                onRowClick={(row) => handleDetailsClick(row)}
+                onSearch={(search) => setSearchTerm(search)}  // Simple search handler
+                onRowClick={(row) => handleDetailsClick(row)} // Optional: row click opens details
               />
               
               {contactPopup.isOpen && (
