@@ -101,8 +101,13 @@ const DashboardPage: FC = () => {
       filtered = filtered.filter(user => user.registrationYear === selectedYear);
     }
 
+    // Location filter: Israel / Not from Israel
     if (selectedLocation) {
-      filtered = filtered.filter(user => user.country.toLowerCase() === selectedLocation.toLowerCase());
+      if (selectedLocation === 'israel') {
+        filtered = filtered.filter(user => (user.country || '').toLowerCase() === 'israel');
+      } else if (selectedLocation === 'not-israel') {
+        filtered = filtered.filter(user => (user.country || '').toLowerCase() !== 'israel');
+      }
     }
 
     if (selectedHasChavruta) {
@@ -120,12 +125,12 @@ const DashboardPage: FC = () => {
 
      const startIdx = (currentPage - 1) * pageSize;
     const paginatedData = filtered.slice(startIdx, startIdx + pageSize);
-
+    console.log("Filtered and paginated data:", paginatedData);
     return {
       data: paginatedData,
       total: filtered.length
     };
-  }, [users, selectedYear, selectedLocation, selectedHasChavruta, searchTerm]);
+  }, [users, selectedYear, selectedLocation, selectedHasChavruta, searchTerm, currentPage]);
 
  
   // Event handlers that accept row objects
@@ -320,7 +325,8 @@ const DashboardPage: FC = () => {
                     placeholder="Select Location"
                     options={[
                       { id: '', value: 'All Locations' },
-                      ...uniqueLocations
+                      { id: 'israel', value: 'Israel' },
+                      { id: 'not-israel', value: 'Not from Israel' }
                     ]}
                     selectedId={selectedLocation}
                     onSelect={(option) => setSelectedLocation(option?.id?.toString() || '')}

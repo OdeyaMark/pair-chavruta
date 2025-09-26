@@ -3,6 +3,10 @@ import { items } from '@wix/data';
 // import { sendPairingEmailHeb, sendPairingEmail } from './sendEmails';
 import { PreferredTracksInfo } from '../constants/tracks';
 
+// import wixFetch from "@wix/fetch";
+
+import { httpClient } from "@wix/essentials";
+import { sendWixEmail } from './sendEmails';
 
 
 
@@ -302,7 +306,8 @@ export async function activatePairInDatabase(chavrutaId: string, sendEmail: bool
     await updateChavrutaBase(chavrutaId, (chavruta) => ({
       ...chavruta,
       status: 2, // Active
-      dateOfActivation: new Date().toISOString()
+      dateOfActivation: new Date().toISOString(),
+      sendEmail: sendEmail,
     }));
 
    /* if (sendEmail) {
@@ -594,7 +599,7 @@ export const getChavrutaById = async (chavrutaId: string) => {
   }
 };
 
-export const sendPairingEmail = async (sourceUserId: string, targetUserId: string, trackId: string) => {
+export const sendPairingEmail = async (sourceUserId: string, targetUserId: string, trackName: string) => {
   try {
     // Fetch the chavruta with user details
     const [sourceUser, targetUser] = await Promise.all([
@@ -606,41 +611,88 @@ export const sendPairingEmail = async (sourceUserId: string, targetUserId: strin
       throw new Error('Missing user data for email sending');
     }
     
-    // Get track name for the email
-    const track = Object.values(PreferredTracksInfo)
-      .find(t => t.id === trackId);
-    const trackName = track?.trackEn || 'Unknown Track';
-    await fetch("https://www.shalhevet.steinsaltzyeshiva.com/_functions/post_sendFoundPairEmail", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        userId: targetUser._id,
-        userName: targetUser.fullName,
-        partnerName: sourceUser.fullName,
-        partnerEmail: sourceUser.email,
-        partnerPhone: sourceUser.phoneNumber,
-        trackName})
-    });
-    consola.success(`Email sent to ${targetUser.fullName} (${targetUser.email})`);
 
-    await fetch("https://www.shalhevet.steinsaltzyeshiva.com/_functions/post_sendFoundPairEmailHeb", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        userId: sourceUser._id,
-        userName: sourceUser.fullName,
-        partnerName: targetUser.fullName,
-        partnerEmail: targetUser.email,
-        partnerPhone: targetUser.phoneNumber,
-        trackName})
+    // Helper function to extract contact details
+    const getContactDetails = (user: any) => ({
+      fName: user.fullName?.split(' ')[0] || '',
+      lName: user.fullName?.split(' ').slice(1).join(' ') || '',
+      email: user.email || '',
+      phone: user.phoneNumber || user.tel || ''
     });
-    consola.success(`Email sent to ${sourceUser.fullName} (${sourceUser.email})`);
+
+    const getTrackIdFromName = (trackName: string) => {
+      // First, try to find in PreferredTracksInfo by trackEn
+      const trackInfo = Object.values(PreferredTracksInfo)
+        .find(track => track.trackEn === trackName);
+      
+      if (trackInfo) {
+        return trackInfo.id;
+      }
+    }
+
+    // Prepare contact details for both users
+    const sourceUserContact = getContactDetails(sourceUser);
+    const targetUserContact = getContactDetails(targetUser);
+    const trackId = getTrackIdFromName(trackName);
+
+    const link = "https://www.shalhevet.steinsaltzyeshiva.com//challenge-page/"+trackId;
+
+    // Send email to target user about their new chavruta (source user)
+    const targetEmailVariables = {
+      userName: targetUser.fullName,
+      partnerName: sourceUser.fullName,
+      partnerEmail: sourceUser.email,
+      partnerPhone: sourceUser.phoneNumber || sourceUser.tel || '',
+      link: link
+    };
+
+    // Send email to source user about their new chavruta (target user)
+    const sourceEmailVariables = {
+      userName: sourceUser.fullName,
+      partnerName: targetUser.fullName,
+      partnerEmail: targetUser.email,
+      partnerPhone: targetUser.phoneNumber || targetUser.tel || '',
+      link: link
+    };
+
+    // Determine email template ID based on user's country (Hebrew for Israel, English for others)
+    const targetEmailId = targetUser.country?.toLowerCase() === 'israel' ? 'trackConfirmHe' : 'trackConfirmEn';
+    const sourceEmailId = sourceUser.country?.toLowerCase() === 'israel' ? 'trackConfirmHe' : 'trackConfirmEn';
+
+    // Send emails to both users
+    await Promise.all([
+      sendWixEmail(targetUserContact, targetEmailId, targetEmailVariables),
+      sendWixEmail(sourceUserContact, sourceEmailId, sourceEmailVariables)
+    ]);
+
+    consola.success(`Pairing emails sent successfully to ${sourceUser.fullName} and ${targetUser.fullName}`);
+
   } catch (error) {
     consola.error('Error sending pairing email:', error);
     throw error;
   }
 };
+
+// async function sendWixEmail(contactDetails: { fName: string, lName: string, email: string, phone: string }, emailId: string, variables: any) {
+//   const response = await httpClient.fetchWithAuth("https://www.shalhevet.steinsaltzyeshiva.com/_functions/newSendEmail", {
+//     method: 'POST',
+//     mode: "cors",
+//     headers: { "Content-Type": "application/json" },
+//     body: JSON.stringify({ 
+//       fName: contactDetails.fName, 
+//       lName: contactDetails.lName, 
+//       email: contactDetails.email, 
+//       phone: contactDetails.phone, 
+//       emailId, 
+//       variables 
+//     })
+//   });
+
+//   if (!response.ok) {
+//     throw new Error("Failed to send email: " + response.status);
+//   }
+
+//   const data = await response.json();
+//   console.log("Email send result:", data);
+//   return data;
+// }

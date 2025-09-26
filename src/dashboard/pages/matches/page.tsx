@@ -46,6 +46,13 @@ const DashboardPage: FC = () => {
   const [showOnlyMatching, setShowOnlyMatching] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [matchSearchTerm, setMatchSearchTerm] = useState('');
+  
+  // Pagination state
+  const [usersCurrentPage, setUsersCurrentPage] = useState(1);
+  const [matchesCurrentPage, setMatchesCurrentPage] = useState(1);
+  const usersPageSize = 10;
+  const matchesPageSize = 10;
+  
   const [trackSelection, setTrackSelection] = useState<{[key: string]: string}>({});
   const [allTracks, setAllTracks] = useState<Array<{id: number, trackEn: string}>>([]);
   const [editableTrackRows, setEditableTrackRows] = useState<Set<string>>(new Set());
@@ -54,6 +61,15 @@ const DashboardPage: FC = () => {
   useEffect(() => {
     fetchInitialData();
   }, []);
+
+  // Reset pages when filters change
+  useEffect(() => {
+    setUsersCurrentPage(1);
+  }, [showAllUsers, searchTerm]);
+
+  useEffect(() => {
+    setMatchesCurrentPage(1);
+  }, [showOnlyMatching, matchSearchTerm, selectedUser]);
 
   const fetchInitialData = async () => {
     try {
@@ -98,8 +114,8 @@ const DashboardPage: FC = () => {
     }
   };
 
-  // Computed display data for users table
-  const usersDisplayData = useMemo(() => {
+  // Computed filtered data for users table
+  const usersFilteredData = useMemo(() => {
     // Filter based on showAllUsers toggle
     let filtered = showAllUsers 
       ? allUsers 
@@ -117,8 +133,15 @@ const DashboardPage: FC = () => {
     return filtered;
   }, [allUsers, showAllUsers, searchTerm]);
 
-  // Computed display data for matches table
-  const matchesDisplayData = useMemo(() => {
+  // Computed paginated data for users table
+  const usersPaginatedData = useMemo(() => {
+    const startIndex = (usersCurrentPage - 1) * usersPageSize;
+    const endIndex = startIndex + usersPageSize;
+    return usersFilteredData.slice(startIndex, endIndex);
+  }, [usersFilteredData, usersCurrentPage, usersPageSize]);
+
+  // Computed filtered data for matches table
+  const matchesFilteredData = useMemo(() => {
     // Filter based on showOnlyMatching toggle
     let filtered = showOnlyMatching 
       ? potentialMatches.filter(match => (match.matchPercentage || 0) > 50)
@@ -135,6 +158,24 @@ const DashboardPage: FC = () => {
 
     return filtered;
   }, [potentialMatches, showOnlyMatching, matchSearchTerm]);
+
+  // Computed paginated data for matches table
+  const matchesPaginatedData = useMemo(() => {
+    const startIndex = (matchesCurrentPage - 1) * matchesPageSize;
+    const endIndex = startIndex + matchesPageSize;
+    return matchesFilteredData.slice(startIndex, endIndex);
+  }, [matchesFilteredData, matchesCurrentPage, matchesPageSize]);
+
+  // Search handlers with pagination reset
+  const handleUsersSearch = useCallback((search: string, page: number, pageSize: number) => {
+    setSearchTerm(search);
+    setUsersCurrentPage(page);
+  }, []);
+
+  const handleMatchesSearch = useCallback((search: string, page: number, pageSize: number) => {
+    setMatchSearchTerm(search);
+    setMatchesCurrentPage(page);
+  }, []);
 
   // Event handlers
   const handleUserDetailsClick = useCallback((row: User) => {
@@ -229,6 +270,8 @@ const DashboardPage: FC = () => {
     setEditableTrackRows(new Set());
     setSelectedUser(row);
     setPotentialMatches(allMatches);
+    // Reset matches pagination when selecting new user
+    setMatchesCurrentPage(1);
   }, [allUsers, allTracks]);
 
   const handlePairWithTrack = useCallback(async (matchId: string, trackName: string, trackId: string) => {
@@ -349,75 +392,43 @@ const DashboardPage: FC = () => {
     }
   }, [potentialMatches, allTracks, handlePairWithTrack]);
 
-  const userColumns = [
+  // Define columns with row-based onClick handlers
+  const userColumns = useMemo(() => [
     { key: "fullName", label: "Full Name" },
     { key: "country", label: "Country" },
     { 
       key: "details",
       label: "",
-      render: () => (
-        <div className="icon-cell">
-          <Eye size={20} className="action-icon" />
-        </div>
-      ),
-      onClick: (id: string) => {
-        dashboard.openModal({
-          modalId: '45308f7c-1309-42a3-8a0b-00611cab9ebe',
-          params: { userId: id }
-        });
-      }
+      onClick: (row: User) => handleUserDetailsClick(row)
     }
-  ];
+  ], [handleUserDetailsClick]);
 
-  // Create matchColumns as a useMemo that updates when dependencies change
   const matchColumns = useMemo(() => [
     { key: "fullName", label: "Full Name" },
     { key: "country", label: "Country" },
     { 
       key: "matchPercentage", 
-      label: "Match %",
-      render: (row: User) => <div>{row.matchPercentage || 0}%</div>
+      label: "Match %"
     },
     { 
       key: "commonTracks", 
       label: "Common Tracks / Select Track",
-      render: (row: User) => {
-        const commonTracks = row.commonTracks || [];
-        const isEditable = editableTrackRows.has(row.id);
-        const selectedTrack = trackSelection[row.id];
-        
-        if (isEditable && selectedTrack) {
-          const track = allTracks.find(t => t.id.toString() === selectedTrack);
-          return <Text size="small" color="#4caf50">Selected: {track?.trackEn || selectedTrack}</Text>;
-        } else if (isEditable) {
-          return <Text size="small" color="#2196f3">👆 Select track from dropdown above</Text>;
-        } else if (commonTracks.length === 0) {
-          return <Text size="small" color="#ff9800">No common tracks</Text>;
-        } else if (commonTracks.length === 1) {
-          return <Text size="small" color="#4caf50">{commonTracks[0]}</Text>;
-        } else {
-          return <Text size="small" color="#2196f3">{commonTracks.join(', ')}</Text>;
-        }
-      },
-      // Make editable conditional per row
       editable: (row: User) => {
         const isEditable = editableTrackRows.has(row.id);
         
         if (!isEditable || allTracks.length === 0) {
-          return undefined; // Not editable
+          return undefined;
         }
 
         const commonTracks = row.commonTracks || [];
         let options = [{ value: '', label: 'Choose a track' }];
         
         if (commonTracks.length === 0) {
-          // Show all tracks
           options.push(...allTracks.map((track) => ({ 
             value: track.id.toString(), 
             label: track.trackEn 
           })));
         } else {
-          // Show only common tracks
           const commonTrackOptions = commonTracks.map(trackName => {
             const track = allTracks.find(t => t.trackEn === trackName);
             return {
@@ -431,7 +442,6 @@ const DashboardPage: FC = () => {
         return {
           options: options,
           onSelect: (rowId: string, value: string) => {
-            // If user selected the placeholder option, don't proceed
             if (!value || value === '') {
               console.log('Empty value selected, ignoring');
               return;
@@ -449,7 +459,6 @@ const DashboardPage: FC = () => {
 
             const commonTracks = targetUser.commonTracks || [];
             
-            // Validate selection based on common tracks
             if (commonTracks.length > 0) {
               const selectedTrack = allTracks.find(t => t.id.toString() === value);
               if (selectedTrack && !commonTracks.includes(selectedTrack.trackEn)) {
@@ -464,22 +473,18 @@ const DashboardPage: FC = () => {
             setTrackSelection(prev => ({
               ...prev,
               [rowId]: value
-          }));
+            }));
 
-            // Get track info - FIXED: Use the value directly as trackId
             const trackId = value;
-            const track = allTracks.find(t => t.id === trackId);
+            const track = allTracks.find(t => t.id.toString() === trackId);
             const trackName = track?.trackEn || `Track ${trackId}`;
             
-            
-            // Remove from editable rows
             setEditableTrackRows(prev => {
               const newSet = new Set(prev);
               newSet.delete(rowId);
               return newSet;
             });
             
-            // Proceed with pairing - FIXED: Use trackId instead of track.id
             handlePairWithTrack(rowId, trackName, trackId);
           }
         };
@@ -488,166 +493,9 @@ const DashboardPage: FC = () => {
     {
       key: "pair",
       label: "Create Pairing",
-      render: (row: User) => {
-        const isEditable = editableTrackRows.has(row.id);
-        
-        if (isEditable) {
-          return (
-            <div className="icon-cell">
-              <button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setEditableTrackRows(prev => {
-                    const newSet = new Set(prev);
-                    newSet.delete(row.id);
-                    return newSet;
-                  });
-                  setTrackSelection(prev => {
-                    const newSelection = { ...prev };
-                    delete newSelection[row.id];
-                    return newSelection;
-                  });
-                }}
-                style={{
-                  background: '#ff5722',
-                  color: 'white',
-                  border: 'none',
-                  padding: '4px 8px',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontSize: '12px'
-                }}
-              >
-                Cancel
-              </button>
-            </div>
-          );
-        }
-        
-        return (
-          <div className="icon-cell">
-            <Handshake 
-              size={20} 
-              className="action-icon"
-              style={{ 
-                opacity: 1,
-                cursor: 'pointer'
-              }}
-            />
-          </div>
-        );
-      },
-      onClick: (id: string) => {
-        
-        const targetUser = potentialMatches.find(user => user.id === id);
-        if (!targetUser) {
-          console.log('Target user not found');
-          return;
-        }
-        
-        const commonTracks = targetUser.commonTracks || [];
-        
-        if (commonTracks.length === 1) {
-          // Single common track - proceed directly
-          const selectedTrack = commonTracks[0];
-          const track = allTracks.find(t => t.trackEn === selectedTrack);
-          const trackId = track?.id || 1;
-          handlePairWithTrack(id, selectedTrack, trackId);
-        } else {
-          // No common tracks or multiple tracks - make the track column editable
-          console.log('Making row editable for track selection');
-          
-          if (allTracks.length === 0) {
-            dashboard.showToast({
-              message: 'No tracks available. Please select a user first.',
-              type: 'error'
-            });
-            return;
-          }
-          
-          setEditableTrackRows(prev => {
-            const newSet = new Set(prev);
-            newSet.add(id);
-            console.log('Updated editable rows:', newSet);
-            return newSet;
-          });
-          
-          dashboard.showToast({
-            message: commonTracks.length === 0 
-              ? 'Now select any track from the dropdown in the tracks column'
-              : 'Now select one of the common tracks from the dropdown in the tracks column',
-            type: 'standard'
-          });
-        }
-      }
+      onClick: (row: User) => handlePairClick(row)
     }
-  ], [allTracks, editableTrackRows, trackSelection, potentialMatches]); // Dependencies that trigger re-render
-
-  const fetchUsers = useCallback(async (search: string, page: number, pageSize: number) => {
-    const data = await fetchMatchData();
-    console.log("Fetched users:", data ); 
-    const users = data?.map(user => ({
-      id: user._id,
-      fullName: user.fullName,
-      country: user.country,
-      gender: user?.gender?.length ? user.gender[0] : undefined,
-      prefGender: user?.prefGender?.length ? user.prefGender[0] : undefined,
-      skillLevel: user.skillLevel,
-      desiredSkillLevel: user.desiredSkillLevel,
-      englishLevel: user.englishLevel,
-      desiredEnglishLevel: user.desiredEnglishLevel,
-      learningStyle: user.learningStyle,
-      preferredTracks: user.prefTracks || [],
-      utcOffset: user.utcOffset,
-      // UPDATED - use flat day structure
-      sunday: user.sunday,
-      monday: user.monday,
-      tuesday: user.tuesday,
-      wednesday: user.wednesday,
-      thursday: user.thursday,
-      matchTo: user.matchTo,
-      prefNumberOfMatches: user.prefNumberOfMatches,
-      havrutaFound: (user.matchTo || 0) >= (user.prefNumberOfMatches || 1)
-    })) || [];
-
-    // Filter based on showAllUsers toggle
-    const filteredByHavruta = showAllUsers 
-      ? users 
-      : users.filter(user => !user.havrutaFound);
-
-    // Apply search filter
-    const filteredUsers = filteredByHavruta.filter(user => 
-      user?.fullName?.toLowerCase().includes(search.toLowerCase()) ||
-      (user.country || '').toLowerCase().includes(search?.toLowerCase())
-    );
-
-    return {
-      data: filteredUsers.slice((page - 1) * pageSize, page * pageSize),
-      total: filteredUsers.length,
-    };
-  }, [showAllUsers]);
-
-  // Separate fetch function for potential matches table
-  const fetchPotentialMatches = useCallback(async (search: string, page: number, pageSize: number) => {
-    // Apply showOnlyMatching filter
-    const baseMatches = showOnlyMatching 
-      ? potentialMatches.filter(match => (match.matchPercentage || 0) > 50)
-      : potentialMatches;
-
-    // Apply search filter
-    const searchFiltered = baseMatches.filter(match => 
-      match?.fullName?.toLowerCase().includes(search?.toLowerCase()) ||
-      (match?.country || '').toLowerCase().includes(search?.toLowerCase())
-    );
-
-    const start = (page - 1) * pageSize;
-    const end = start + pageSize;
-
-    return {
-      data: searchFiltered.slice(start, end),
-      total: searchFiltered.length,
-    };
-  }, [potentialMatches, showOnlyMatching]);
+  ], [allTracks, editableTrackRows, trackSelection, potentialMatches, handlePairWithTrack, handlePairClick]);
 
   return (
     <WixDesignSystemProvider features={{ newColorsBranding: true }}>
@@ -686,14 +534,14 @@ const DashboardPage: FC = () => {
                 </Box>
                 <Box>
                   <GenericTable
-                    key={`users-${showAllUsers}`}
                     columns={userColumns}
-                    data={usersDisplayData}
-                    onRowClick={(id) => handleUserSelect(id)}
-                    selectedRowId={selectedUser?.id}
+                    data={usersPaginatedData}
+                    total={usersFilteredData.length}
                     loading={loading}
-                    searchTerm={searchTerm}
-                    setSearchTerm={setSearchTerm}
+                    pageSize={usersPageSize}
+                    onSearch={handleUsersSearch}
+                    onRowClick={(row) => handleUserSelect(row)}
+                    selectedRowId={selectedUser?.id}
                   />
                 </Box>
               </Box>
@@ -730,13 +578,12 @@ const DashboardPage: FC = () => {
                 <Box>
                   {selectedUser ? (
                     <GenericTable
-                      key={`matches-${showOnlyMatching}-${selectedUser.id}-${editableTrackRows.size}-${allTracks.length}`}
                       columns={matchColumns}
-                      data={matchesDisplayData}
-                      pageSize={10}
-                      loading={loading}
-                      searchTerm={matchSearchTerm}
-                      setSearchTerm={setMatchSearchTerm}
+                      data={matchesPaginatedData}
+                      total={matchesFilteredData.length}
+                      loading={false}
+                      pageSize={matchesPageSize}
+                      onSearch={handleMatchesSearch}
                     />
                   ) : (
                     <Box padding="20px" align="center">

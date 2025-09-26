@@ -8,8 +8,7 @@ import {
 } from '@wix/design-system';
 import '@wix/design-system/styles.global.css';
 import { width, height, title } from './modal.json';
-import { sendWelcomeEmail } from 'backend/sendEmails';
-import { createNewPairInDatabase, sendPairingEmail, updateChavrutaStatus } from '../../../data/cmsData';
+import { activatePairInDatabase, createNewPairInDatabase, sendPairingEmail, updateChavrutaStatus } from '../../../data/cmsData';
 
 interface ModalParams {
   chavrutaId: string;
@@ -27,13 +26,11 @@ const Modal: FC = () => {
   const [params, setParams] = useState<ModalParams | null>(null);
 
   useEffect(() => {
-    console.log('Modal useEffect called');
     
     // Get the modal parameters when the modal opens
     const observerResult = dashboard.observeState((receivedParams: any) => {
       console.log("dashboard.observeState callback called with:", receivedParams);
       if (receivedParams) {
-        console.log("Modal params received:", receivedParams);
         setParams(receivedParams);
       } else {
         console.log("No params received in observeState");
@@ -47,15 +44,11 @@ const Modal: FC = () => {
   }, []);
 
   const handleConfirm = () => {
-    console.log('handleConfirm called');
-    console.log('Current params:', params);
     // Move to the email confirmation step
     setStep('email');
   };
 
   const handleSendEmail = async () => {
-    console.log('handleSendEmail called');
-    console.log('Current params:', params);
     
     if (!params) {
       console.log('No params available, returning early');
@@ -63,7 +56,7 @@ const Modal: FC = () => {
     }
 
     try {
-      await updateChavrutaStatus(params.chavrutaId, 2);
+      await activatePairInDatabase(params.chavrutaId, true);
       await sendPairingEmail(params.sourceUserId, params.targetUserId, params.trackId);
       
       dashboard.showToast({
@@ -91,14 +84,7 @@ const Modal: FC = () => {
     }
 
     try {
-      console.log('About to call createNewPairInDatabase with:');
-      console.log('- sourceUserId:', params.sourceUserId);
-      console.log('- targetUserId:', params.targetUserId);
-      console.log('- trackId:', params.trackId);
-      
-      await createNewPairInDatabase(params.sourceUserId, params.targetUserId, params.trackId);
-      
-      console.log('createNewPairInDatabase completed successfully');
+      await activatePairInDatabase(params.chavrutaId, false);
       
       dashboard.showToast({
         message: `Pair activated between ${params.sourceUserName} and ${params.targetUserName}`,

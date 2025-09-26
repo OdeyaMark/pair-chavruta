@@ -179,8 +179,11 @@ export const GenericTable: React.FC<GenericTableProps> = ({
     return null;
   };
 
+  // Add a safe columns array to avoid undefined in preview builds
+  const safeColumns = Array.isArray(columns) ? columns : [];
+
   const renderCellContent = (columnKey: string, value: any, row: any) => {
-    const column = columns.find(col => col.key === columnKey);
+    const column = safeColumns.find(col => col.key === columnKey);
 
     // Handle function-based or static editable configuration
     let editableConfig;
@@ -291,14 +294,14 @@ export const GenericTable: React.FC<GenericTableProps> = ({
       <table className="table">
         <thead>
           <tr>
-            {columns.map(col => (
+            {safeColumns.map(col => (
               <th key={col.key}>{col.label}</th>
             ))}
           </tr>
         </thead>
         <tbody>
           {safeData.length === 0 ? (
-            <tr><td colSpan={columns.length} className="no-data">No data found.</td></tr>
+            <tr><td colSpan={safeColumns.length || 1} className="no-data">No data found.</td></tr>
           ) : (
             safeData.map((row, idx) => (
               <tr 
@@ -306,7 +309,7 @@ export const GenericTable: React.FC<GenericTableProps> = ({
                 onClick={() => onRowClick && onRowClick(row)} // <- pass row
                 className={`table-row ${onRowClick ? 'clickable-row' : ''} ${selectedRowId === row?.id ? 'selected-row' : ''}`}
               >
-                {columns.map(col => (
+                {safeColumns.map(col => (
                   <td
                     key={col.key}
                     onClick={(e) => {
