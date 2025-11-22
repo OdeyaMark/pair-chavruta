@@ -48,7 +48,8 @@ const checkTimeSlot = (dayValue: any, slot: string) => {
   if (!dayValue || !Array.isArray(dayValue)) {
     return false;
   }
-  return dayValue.includes(slot) || false;
+
+  return dayValue.map((item: any) => item.toLowerCase()).includes(slot.toLowerCase()) || false;
 };
 
 

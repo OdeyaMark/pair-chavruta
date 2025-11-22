@@ -43,7 +43,7 @@ const DashboardPage: FC = () => {
   
   // UI state
   const [showAllUsers, setShowAllUsers] = useState(false);
-  const [showOnlyMatching, setShowOnlyMatching] = useState(false);
+  const [showOnlyMatching, setShowOnlyMatching] = useState(true); // Changed default to true
   const [searchTerm, setSearchTerm] = useState('');
   const [matchSearchTerm, setMatchSearchTerm] = useState('');
   
@@ -142,10 +142,10 @@ const DashboardPage: FC = () => {
 
   // Computed filtered data for matches table
   const matchesFilteredData = useMemo(() => {
-    // Filter based on showOnlyMatching toggle
+    // Filter based on showOnlyMatching toggle - only filter out users with 0% match when toggle is on
     let filtered = showOnlyMatching 
-      ? potentialMatches.filter(match => (match.matchPercentage || 0) > 50)
-      : potentialMatches;
+      ? potentialMatches.filter(match => match.isCompatible && (match.matchPercentage || 0) > 0)
+      : potentialMatches; // Show all when toggle is off, but still calculate match percentage
 
     // Apply search filter
     if (matchSearchTerm) {
@@ -184,6 +184,10 @@ const DashboardPage: FC = () => {
       params: { userId: row.id }
     });
   }, []);
+
+  const handleMatchRowClick = useCallback((row: User) => {
+    // dashboard.openModal({modalId: 'f03b650d-46f9-43ce-92b0-9bba324c1a20', params: { user1: selectedUser, user2: row }});
+  }, [selectedUser]);
 
   const handleUserSelect = useCallback(async (row: User) => {
     console.log('Selecting user:', row.fullName);
@@ -584,6 +588,7 @@ const DashboardPage: FC = () => {
                       loading={false}
                       pageSize={matchesPageSize}
                       onSearch={handleMatchesSearch}
+                      onRowClick={handleMatchRowClick}
                     />
                   ) : (
                     <Box padding="20px" align="center">

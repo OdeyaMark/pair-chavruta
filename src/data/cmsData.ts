@@ -4,19 +4,14 @@ import { items } from '@wix/data';
 import { PreferredTracksInfo } from '../constants/tracks';
 
 // import wixFetch from "@wix/fetch";
-
-import { httpClient } from "@wix/essentials";
 import { sendWixEmail } from './sendEmails';
-
-
-
-
 
 export async function fetchCMSData() {
   try {
   consola.info('Fetching CMS data...');
-  const results = await items.query('Import3').fields("fullName", "country", "matchTo", "prefNumberOfMatches", "dateOfRegistered", "_id", "prefTracks").descending('dateOfRegistered').limit(1000).find();
+  const results = await items.query('Import3').fields("fullName", "country", "matchTo", "prefNumberOfMatches", "dateOfRegistered", "_id", "prefTracks").ne('isInArchive', true).descending('dateOfRegistered').limit(1000).find();
   return results.items;
+
   } catch (error) {
   consola.error('Error fetching CMS data:', error);
   }
@@ -242,8 +237,8 @@ export async function updateChavrutaNote(chavrutaId: string, note: string) {
 
 export async function fetchArchivedUsers() {
   try {
-    const result = await items.query('Import3')
-      .eq('IsInArchive', true)
+    const result = await items.query('Import3').fields("fullName", "country", "matchTo", "prefNumberOfMatches", "dateOfRegistered", "_id", "prefTracks")
+      .eq('isInArchive', true)
       .find();
     return result.items;
   } catch (error) {
@@ -303,6 +298,7 @@ export async function fetchMatchData() {
 export async function activatePairInDatabase(chavrutaId: string, sendEmail: boolean) {
   try {
     // Update the chavruta status to active
+    console.log('Activating chavruta with ID:', chavrutaId, 'Send email:', sendEmail);
     await updateChavrutaBase(chavrutaId, (chavruta) => ({
       ...chavruta,
       status: 2, // Active
@@ -367,7 +363,7 @@ export async function activatePairInDatabase(chavrutaId: string, sendEmail: bool
 
     consola.success(`Chavruta ${chavrutaId} activated successfully`);
     return { success: true, emailsSent: sendEmail };
-    */ return { success: true, emailsSent: false }; // Temporarily disable email sending
+    */ return { success: true, emailsSent: sendEmail }; // Temporarily disable email sending
   } catch (error) {
     consola.error('Error activating pair:', error);
     throw error;
@@ -696,3 +692,48 @@ export const sendPairingEmail = async (sourceUserId: string, targetUserId: strin
 //   console.log("Email send result:", data);
 //   return data;
 // }
+
+/**
+ * Archives a user by setting their isInArchive field to true
+ * @param userId - The ID of the user to archive
+ * @returns Promise<void>
+ */
+export const archiveUser = async (userId: string): Promise<void> => {
+  try {
+    console.log('Archiving user with ID:', userId);
+    
+    await updateUserBase(userId, (user: any) => ({
+      ...user,
+      isInArchive: true,// Optional: track when the user was archived
+    }));
+    
+    console.log('User archived successfully');
+    
+  } catch (error) {
+    console.error('Error archiving user:', error);
+    throw error;
+  }
+};
+
+/**
+ * Unarchives a user by setting their isInArchive field to false
+ * @param userId - The ID of the user to unarchive
+ * @returns Promise<void>
+ */
+export const unarchiveUser = async (userId: string): Promise<void> => {
+  try {
+    console.log('Unarchiving user with ID:', userId);
+    
+    await updateUserBase(userId, (user: any) => ({
+      ...user,
+      isInArchive: false,
+      dateOfUnarchive: new Date().toISOString() // Optional: track when the user was unarchived
+    }));
+    
+    console.log('User unarchived successfully');
+    
+  } catch (error) {
+    console.error('Error unarchiving user:', error);
+    throw error;
+  }
+};

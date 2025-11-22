@@ -56,7 +56,9 @@ const Modal: FC = () => {
     }
 
     try {
+      console.log("activatePairInDatabase with params:", params);
       await activatePairInDatabase(params.chavrutaId, true);
+      console.log("sendPairingEmail with params:", params);
       await sendPairingEmail(params.sourceUserId, params.targetUserId, params.trackId);
       
       dashboard.showToast({

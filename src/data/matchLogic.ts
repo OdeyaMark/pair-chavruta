@@ -8,8 +8,8 @@ interface User {
   englishLevel?: number;
   desiredEnglishLevel?: number;
   learningStyle?: number;
-  preferredTracks: number[];
-  utcOffset: number;
+  prefTracks: number[];  // Changed from preferredTracks
+  utcOffset: string | number; // Allow both string and number formats
   // Change from nested structure to flat structure
   sunday?: { morning: boolean; noon: boolean; evening: boolean; lateNight: boolean; };
   monday?: { morning: boolean; noon: boolean; evening: boolean; lateNight: boolean; };
@@ -21,9 +21,9 @@ interface User {
 }
 
 const TIME_SLOTS = {
-  morning: { start: 5, end: 12 },    // 05:00 - 12:00
-  noon: { start: 12, end: 18 },      // 12:00 - 18:00
-  evening: { start: 18, end: 21 },   // 18:00 - 21:00
+  Morning: { start: 5, end: 12 },    // 05:00 - 12:00
+  Noon: { start: 12, end: 18 },      // 12:00 - 18:00
+  Evening: { start: 18, end: 21 },   // 18:00 - 21:00
   lateNight: { start: 21, end: 26 }  // 21:00 - 02:00 (next day, so 26 = 2)
 };
 
@@ -110,7 +110,7 @@ function checkCountryCompatibility(sourceUser: User, potentialPair: User): boole
  * @param potentialPrefGender - The gender preference of the potential pair
  * @returns boolean - true if they are compatible, false otherwise
  */
-function checkGenderCompatibility(
+export function checkGenderCompatibility(
   sourceGender: string, 
   sourcePrefGender: string | undefined, 
   potentialGender: string, 
@@ -127,7 +127,7 @@ function checkGenderCompatibility(
     }
   }
 
-  // Check potential pair's preference
+  // Check potential pair's preference - FIXED: Added 'not specified' check
   if (potentialPrefGender && potentialPrefGender !== 'not specified') {
     if (potentialPrefGender === 'male' && sourceGender !== 'male') {
       return false;
@@ -145,7 +145,7 @@ function checkGenderCompatibility(
  * Checks if learning skills are compatible
  * Israeli users have desiredSkillLevel, non-Israeli have skillLevel
  */
-function checkLearningSkillCompatibility(sourceUser: User, potentialPair: User): boolean {
+export function checkLearningSkillCompatibility(sourceUser: User, potentialPair: User): boolean {
   const sourceIsIsraeli = sourceUser.country === 'Israel';
   const pairIsIsraeli = potentialPair.country === 'Israel';
 
@@ -197,7 +197,7 @@ function checkLearningSkillCompatibility(sourceUser: User, potentialPair: User):
  * Checks if English levels are compatible
  * Israeli users have englishLevel, non-Israeli have desiredEnglishLevel
  */
-function checkEnglishLevelCompatibility(sourceUser: User, potentialPair: User): boolean {
+export function checkEnglishLevelCompatibility(sourceUser: User, potentialPair: User): boolean {
   const sourceIsIsraeli = sourceUser.country === 'Israel';
   const pairIsIsraeli = potentialPair.country === 'Israel';
 
@@ -252,266 +252,289 @@ function checkEnglishLevelCompatibility(sourceUser: User, potentialPair: User): 
 /**
  * Checks if users share at least one preferred track
  */
-function checkTrackCompatibility(sourceUser: User, potentialPair: User): boolean {
-  if (!sourceUser.preferredTracks || !potentialPair.preferredTracks) {
+export function checkTrackCompatibility(sourceUser: User, potentialPair: User): boolean {
+  if (!sourceUser.prefTracks || !potentialPair.prefTracks) {
     return true;
   }
 
   // Check if there's any intersection between the track arrays
-  return sourceUser.preferredTracks.some(track => 
-    potentialPair.preferredTracks.includes(track)
+  return sourceUser.prefTracks.some(track => 
+    potentialPair.prefTracks.includes(track)
   );
+}
+
+/**
+ * Converts UTC offset string (e.g., "-03:00", "+02:00") to number of hours
+ */
+export function parseUtcOffset(utcOffset: string | number): number {
+  // If it's already a number, return it
+  if (typeof utcOffset === 'number') {
+    return utcOffset;
+  }
+
+  // If it's a string, parse it
+  if (typeof utcOffset === 'string') {
+    // Handle formats like "+02:00", "-03:00", "+0530", "-0730"
+    const match = utcOffset.match(/^([+−-])(\d{1,2}):?(\d{2})?$/);
+    if (match) {
+      const sign = match[1] === '+' ? 1 : -1;
+      const hours = parseInt(match[2], 10);
+      const minutes = match[3] ? parseInt(match[3], 10) : 0;
+      return sign * (hours + minutes / 60);
+    }
+  }
+
+  // Default to 0 if parsing fails
+  console.warn('Failed to parse UTC offset:', utcOffset, 'defaulting to 2');
+  return 2; // default to Israel time zone UTC+2
+}
+
+/**
+ * Converts a user's available time slots to a list of available hours for each day
+ */
+export function convertTimeSlotesToHours(user: User): Record<string, number[]> {
+  const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday'];
+  const timeSlots = ['Morning', 'Noon', 'Evening', 'lateNight'] as const;
+  const result: Record<string, number[]> = {};
+
+  for (const day of days) {
+    if (!user[day]) continue;
+
+    const availableHours: number[] = [];
+
+    for (const timeSlot of timeSlots) {
+      // Handle both boolean and array formats for time availability
+      let isAvailable = false;
+      
+      if (typeof user[day] === 'object') {
+        if (Array.isArray(user[day])) {
+          // Array format: check if slot name is in arra
+          const slotToCheck = timeSlot === 'lateNight' ? 'Late night' : timeSlot;
+          isAvailable = user[day].includes(slotToCheck);
+        } else {
+          // Object format: check boolean property
+          isAvailable = user[day][timeSlot] === true;
+        }
+      }
+
+      if (isAvailable) {
+        const slot = TIME_SLOTS[timeSlot];
+        // Add all hours in this time slot
+        for (let hour = slot.start; hour < slot.end; hour++) {
+          availableHours.push(hour);
+        }
+      }
+    }
+
+    if (availableHours.length > 0) {
+      result[day] = availableHours.sort((a, b) => a - b); // Sort hours
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Converts source user's hours to pair's timezone and maps them to correct days
+ */
+export function convertHoursToTargetTimezone(
+  sourceHours: Record<string, number[]>, 
+  timezoneOffset: number
+): Record<string, number[]> {
+  const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday'];
+  const result: Record<string, number[]> = {};
+
+  for (const [sourceDay, hours] of Object.entries(sourceHours)) {
+    const sourceDayIndex = days.indexOf(sourceDay);
+    
+    for (const hour of hours) {
+      const convertedHour = hour + timezoneOffset;
+      
+      // Calculate which day this hour falls on after timezone conversion
+      let targetDayOffset = 0;
+      let normalizedHour = convertedHour;
+
+      // Handle day changes
+      if (convertedHour >= 24) {
+        targetDayOffset = Math.floor(convertedHour / 24);
+        normalizedHour = convertedHour % 24;
+      } else if (convertedHour < 0) {
+        targetDayOffset = Math.floor(convertedHour / 24); // This will be negative
+        normalizedHour = ((convertedHour % 24) + 24) % 24;
+      }
+
+      // Calculate target day
+      const targetDayIndex = (sourceDayIndex + targetDayOffset + days.length) % days.length;
+      const targetDay = days[targetDayIndex];
+
+      // Add hour to target day
+      if (!result[targetDay]) {
+        result[targetDay] = [];
+      }
+      result[targetDay].push(normalizedHour);
+    }
+  }
+
+  // Sort hours for each day
+  for (const day in result) {
+    result[day] = result[day].sort((a, b) => a - b);
+  }
+
+  return result;
+}
+
+/**
+ * Finds overlapping hours between two users' availability
+ */
+export function findOverlappingHours(
+  sourceHours: Record<string, number[]>, 
+  pairHours: Record<string, number[]>
+): Record<string, number[]> {
+  const result: Record<string, number[]> = {};
+
+  for (const day in sourceHours) {
+    if (!pairHours[day]) continue;
+
+    const sourceAvailable = sourceHours[day];
+    const pairAvailable = pairHours[day];
+    
+    // Find intersection of hours
+    const overlapping = sourceAvailable.filter(hour => pairAvailable.includes(hour));
+    
+    if (overlapping.length > 0) {
+      result[day] = overlapping.sort((a, b) => a - b);
+    }
+  }
+
+  return result;
 }
 
 /**
  * Checks if users have at least one overlapping learning time considering timezone differences
  */
 function checkLearningTimeCompatibility(sourceUser: User, potentialPair: User): boolean {
-  const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday'];
-  const timeSlots = ['morning', 'noon', 'evening', 'lateNight'] as const;
+  // Parse and calculate timezone difference (hours)
+  const sourceOffset = parseUtcOffset(sourceUser.utcOffset);
+  const pairOffset = parseUtcOffset(potentialPair.utcOffset);
+  const timezoneOffset = pairOffset - sourceOffset;
 
-  // Calculate timezone difference
-  const timezoneOffset = potentialPair.utcOffset - sourceUser.utcOffset;
+  // Step 1: Convert both users' time slots to hours
+  const sourceHours = convertTimeSlotesToHours(sourceUser);
+  const pairHours = convertTimeSlotesToHours(potentialPair);
 
-  for (const day of days) {
-    for (const timeSlot of timeSlots) {
-      // Check if source user is available at this time - UPDATED ACCESS
-      if (!sourceUser[day] || !sourceUser[day][timeSlot]) {
-        continue;
-      }
+  // Step 2: Convert source user's hours to pair's timezone
+  const sourceHoursInPairTimezone = convertHoursToTargetTimezone(sourceHours, timezoneOffset);
 
-      // Convert source user's time to potential pair's timezone and check overlap
-      if (isTimeOverlapping(day, timeSlot, timezoneOffset, potentialPair)) {
-        return true;
-      }
-    }
-  }
+  // Step 3: Find overlapping hours
+  const overlappingHours = findOverlappingHours(sourceHoursInPairTimezone, pairHours);
 
-  return false;
+  // Return true if there's any overlap
+  return Object.keys(overlappingHours).length > 0;
 }
 
 /**
- * Checks if a specific time slot overlaps when converted to another timezone
+ * Enhanced debugging function for the new hour-based approach
  */
-function isTimeOverlapping(
-  sourceDay: string, 
-  sourceTimeSlot: string, 
-  timezoneOffset: number, 
-  potentialPair: User
-): boolean {
-  const sourceSlot = TIME_SLOTS[sourceTimeSlot];
+function checkLearningTimeCompatibilityDebug(sourceUser: User, potentialPair: User): boolean {
+  console.log('\n=== DETAILED LEARNING TIME COMPATIBILITY DEBUG (HOUR-BASED) ===');
   
-  // Convert source time to potential pair's timezone
-  const convertedStartHour = sourceSlot.start + timezoneOffset;
-  const convertedEndHour = sourceSlot.end + timezoneOffset;
-
-  // Handle day overflow/underflow
-  const { day: convertedDay, normalizedStart, normalizedEnd } = 
-    normalizeDayAndTime(sourceDay, convertedStartHour, convertedEndHour);
-
-  // Check each time slot in the converted day for overlap
-  const timeSlots = ['morning', 'noon', 'evening', 'lateNight'] as const;
+  console.log('Source UTC Offset (raw):', sourceUser.utcOffset);
+  console.log('Pair UTC Offset (raw):', potentialPair.utcOffset);
   
-  for (const pairTimeSlot of timeSlots) {
-    // UPDATED ACCESS - use flat structure
-    if (!potentialPair[convertedDay] || !potentialPair[convertedDay][pairTimeSlot]) {
-      continue;
-    }
-
-    const pairSlot = TIME_SLOTS[pairTimeSlot];
-    
-    // Check if there's any overlap between the converted time and pair's available time
-    if (hasTimeOverlap(normalizedStart, normalizedEnd, pairSlot.start, pairSlot.end)) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-/**
- * Normalizes day and time when timezone conversion causes day overflow
- */
-function normalizeDayAndTime(sourceDay: string, startHour: number, endHour: number): {
-  day: string;
-  normalizedStart: number;
-  normalizedEnd: number;
-} {
-  const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday'];
-  const sourceDayIndex = days.indexOf(sourceDay);
+  // Parse UTC offsets
+  const sourceOffset = parseUtcOffset(sourceUser.utcOffset);
+  const pairOffset = parseUtcOffset(potentialPair.utcOffset);
+  const timezoneOffset = pairOffset - sourceOffset;
   
-  let targetDayIndex = sourceDayIndex;
-  let normalizedStart = startHour;
-  let normalizedEnd = endHour;
+  console.log('Source UTC Offset (parsed):', sourceOffset);
+  console.log('Pair UTC Offset (parsed):', pairOffset);
+  console.log('Timezone difference:', timezoneOffset, 'hours');
 
-  // Handle day underflow (negative hours)
-  if (startHour < 0) {
-    targetDayIndex = (sourceDayIndex - 1 + days.length) % days.length;
-    normalizedStart = startHour + 24;
-    normalizedEnd = endHour + 24;
-  }
-  // Handle day overflow (hours >= 24)
-  else if (startHour >= 24) {
-    targetDayIndex = (sourceDayIndex + 1) % days.length;
-    normalizedStart = startHour - 24;
-    normalizedEnd = endHour - 24;
-  }
-
-  // Handle special case for lateNight that spans to next day
-  if (normalizedEnd > 24) {
-    normalizedEnd = normalizedEnd - 24;
-  }
-
-  return {
-    day: days[targetDayIndex],
-    normalizedStart,
-    normalizedEnd
-  };
-}
-
-/**
- * Checks if two time ranges overlap
- */
-function hasTimeOverlap(start1: number, end1: number, start2: number, end2: number): boolean {
-  // Handle late night special case (crosses midnight)
-  if (end1 > 24) {
-    // Split into two ranges: before midnight and after midnight
-    return hasTimeOverlap(start1, 24, start2, end2) || 
-           hasTimeOverlap(0, end1 - 24, start2, end2);
+  // Step 1: Convert both users' time slots to hours
+  console.log('\n--- STEP 1: Converting time slots to hours ---');
+  const sourceHours = convertTimeSlotesToHours(sourceUser);
+  const pairHours = convertTimeSlotesToHours(potentialPair);
+  
+  console.log('Source user available hours by day:');
+  for (const [day, hours] of Object.entries(sourceHours)) {
+    console.log(`  ${day}: ${hours.join(', ')}`);
   }
   
-  if (end2 > 24) {
-    // Split into two ranges: before midnight and after midnight
-    return hasTimeOverlap(start1, end1, start2, 24) || 
-           hasTimeOverlap(start1, end1, 0, end2 - 24);
+  console.log('Pair user available hours by day:');
+  for (const [day, hours] of Object.entries(pairHours)) {
+    console.log(`  ${day}: ${hours.join(', ')}`);
   }
 
-  // Normal overlap check
-  return start1 < end2 && start2 < end1;
+  // Step 2: Convert source user's hours to pair's timezone
+  console.log('\n--- STEP 2: Converting source hours to pair\'s timezone ---');
+  const sourceHoursInPairTimezone = convertHoursToTargetTimezone(sourceHours, timezoneOffset);
+  
+  console.log('Source user hours converted to pair\'s timezone:');
+  for (const [day, hours] of Object.entries(sourceHoursInPairTimezone)) {
+    console.log(`  ${day}: ${hours.join(', ')}`);
+  }
+
+  // Step 3: Find overlapping hours
+  console.log('\n--- STEP 3: Finding overlapping hours ---');
+  const overlappingHours = findOverlappingHours(sourceHoursInPairTimezone, pairHours);
+  
+  console.log('Overlapping hours by day:');
+  let totalOverlaps = 0;
+  for (const [day, hours] of Object.entries(overlappingHours)) {
+    console.log(`  ${day}: ${hours.join(', ')} (${hours.length} hours)`);
+    totalOverlaps += hours.length;
+  }
+
+  const hasOverlap = Object.keys(overlappingHours).length > 0;
+  
+  console.log('\n=== SUMMARY ===');
+  console.log(`Total overlapping hours: ${totalOverlaps}`);
+  console.log(`Days with overlaps: ${Object.keys(overlappingHours).length}`);
+  console.log(`Final result: ${hasOverlap ? '✅ COMPATIBLE' : '❌ NOT COMPATIBLE'}`);
+  
+  return hasOverlap;
 }
 
 /**
- * Helper function to get detailed learning time analysis
+ * Calculates the number of overlapping learning hours between two users (updated for hour-based approach)
  */
-export function getLearningTimeAnalysis(sourceUser: User, potentialPair: User): {
-  hasOverlap: boolean;
-  overlappingTimes: Array<{
-    sourceDay: string;
-    sourceTimeSlot: string;
-    pairDay: string;
-    pairTimeSlot: string;
-  }>;
-} {
-  const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday'];
-  const timeSlots = ['morning', 'noon', 'evening', 'lateNight'] as const;
-  const overlappingTimes: Array<{
-    sourceDay: string;
-    sourceTimeSlot: string;
-    pairDay: string;
-    pairTimeSlot: string;
-  }> = [];
+export function calculateOverlappingHours(sourceUser: User, potentialMatch: User): number {
+  // Parse UTC offsets
+  const sourceOffset = parseUtcOffset(sourceUser.utcOffset);
+  const pairOffset = parseUtcOffset(potentialMatch.utcOffset);
+  const timezoneOffset = pairOffset - sourceOffset;
 
-  const timezoneOffset = potentialPair.utcOffset - sourceUser.utcOffset;
+  // Convert time slots to hours
+  const sourceHours = convertTimeSlotesToHours(sourceUser);
+  const pairHours = convertTimeSlotesToHours(potentialMatch);
 
-  for (const sourceDay of days) {
-    for (const sourceTimeSlot of timeSlots) {
-      // UPDATED ACCESS - use flat structure
-      if (!sourceUser[sourceDay] || !sourceUser[sourceDay][sourceTimeSlot]) {
-        continue;
-      }
+  // Convert source hours to pair's timezone
+  const sourceHoursInPairTimezone = convertHoursToTargetTimezone(sourceHours, timezoneOffset);
 
-      const sourceSlot = TIME_SLOTS[sourceTimeSlot];
-      const convertedStartHour = sourceSlot.start + timezoneOffset;
-      const convertedEndHour = sourceSlot.end + timezoneOffset;
+  // Find overlapping hours
+  const overlappingHours = findOverlappingHours(sourceHoursInPairTimezone, pairHours);
 
-      const { day: convertedDay, normalizedStart, normalizedEnd } = 
-        normalizeDayAndTime(sourceDay, convertedStartHour, convertedEndHour);
-
-      for (const pairTimeSlot of timeSlots) {
-        // UPDATED ACCESS - use flat structure
-        if (!potentialPair[convertedDay] || !potentialPair[convertedDay][pairTimeSlot]) {
-          continue;
-        }
-
-        const pairSlot = TIME_SLOTS[pairTimeSlot];
-        
-        if (hasTimeOverlap(normalizedStart, normalizedEnd, pairSlot.start, pairSlot.end)) {
-          overlappingTimes.push({
-            sourceDay,
-            sourceTimeSlot,
-            pairDay: convertedDay,
-            pairTimeSlot
-          });
-        }
-      }
-    }
+  // Count total overlapping hours
+  let totalOverlappingHours = 0;
+  for (const hours of Object.values(overlappingHours)) {
+    totalOverlappingHours += hours.length;
   }
 
-  return {
-    hasOverlap: overlappingTimes.length > 0,
-    overlappingTimes
-  };
+  return totalOverlappingHours;
 }
 
 /**
- * Updated compatibility analysis including learning times
+ * Calculates total available hours for a user (updated for hour-based approach)
  */
-export function getCompatibilityAnalysis(sourceUser: User, potentialPair: User): {
-  compatible: boolean;
-  reasons: string[];
-} {
-  const reasons: string[] = [];
-  let compatible = true;
-
-  if (!checkCountryCompatibility(sourceUser, potentialPair)) {
-    compatible = false;
-    reasons.push('Country mismatch: Both users are from the same region');
+function calculateTotalAvailableHours(user: User): number {
+  const userHours = convertTimeSlotesToHours(user);
+  let totalHours = 0;
+  
+  for (const hours of Object.values(userHours)) {
+    totalHours += hours.length;
   }
 
-  // Updated call
-  if (!checkGenderCompatibility(
-    sourceUser.gender, 
-    sourceUser.prefGender, 
-    potentialPair.gender, 
-    potentialPair.prefGender
-  )) {
-    compatible = false;
-    reasons.push('Gender preference mismatch');
-  }
-
-  if (!checkLearningSkillCompatibility(sourceUser, potentialPair)) {
-    // compatible = false;
-    reasons.push('Learning skill mismatch');
-  }
-
-  if (!checkEnglishLevelCompatibility(sourceUser, potentialPair)) {
-    compatible = false;
-    reasons.push('English level incompatible');
-  }
-
-  if (!checkTrackCompatibility(sourceUser, potentialPair)) {
-    compatible = false;
-    reasons.push('No shared preferred tracks');
-  }
-
-  if (!checkLearningTimeCompatibility(sourceUser, potentialPair)) {
-    compatible = false;
-    reasons.push('No overlapping learning times across timezones');
-  } else {
-    const timeAnalysis = getLearningTimeAnalysis(sourceUser, potentialPair);
-    reasons.push(`Found ${timeAnalysis.overlappingTimes.length} overlapping time slots`);
-  }
-
-  if (!checkMatchingLimitCompatibility(potentialPair)) {
-    compatible = false;
-    reasons.push(`User has reached their matching limit (${potentialPair.matchTo}/${potentialPair.prefNumberOfMatches})`);
-  }
-
-  if (compatible) {
-    reasons.push('All compatibility criteria met');
-  }
-
-  return { compatible, reasons };
+  return totalHours;
 }
 
 /**
@@ -523,7 +546,7 @@ export function getCompatibilityAnalysis(sourceUser: User, potentialPair: User):
 export function calculateMatchPercentage(sourceUser: User, potentialMatch: User): number {
   let score = 0;
 
-  // 1. Gender preference compatibility - 1 point - Updated call
+  // 1. Gender preference compatibility - 1 point
   if (checkGenderCompatibility(
     sourceUser.gender, 
     sourceUser.prefGender, 
@@ -533,10 +556,10 @@ export function calculateMatchPercentage(sourceUser: User, potentialMatch: User)
     score += 1;
   }
 
-  // 2. Learning skill compatibility - 1 point
-  if (checkLearningSkillCompatibility(sourceUser, potentialMatch)) {
-    score += 1;
-  }
+  // 2. Learning skill compatibility - 1 point (commented out in main compatibility)
+  // if (checkLearningSkillCompatibility(sourceUser, potentialMatch)) {
+  //   score += 1;
+  // }
 
   // 3. English level compatibility - 1 point
   if (checkEnglishLevelCompatibility(sourceUser, potentialMatch)) {
@@ -544,15 +567,14 @@ export function calculateMatchPercentage(sourceUser: User, potentialMatch: User)
   }
 
   // 4. Learning style compatibility - 1 point
-  // Note: You'll need to add learningStyle to the User interface and implement this check
   if (checkLearningStyleCompatibility(sourceUser, potentialMatch)) {
     score += 1;
   }
 
   // 5. Common tracks - 1 point per common track
-  if (sourceUser.preferredTracks && potentialMatch.preferredTracks) {
-    const commonTracksCount = sourceUser.preferredTracks.filter(track => 
-      potentialMatch.preferredTracks.includes(track)
+  if (sourceUser.prefTracks && potentialMatch.prefTracks) {
+    const commonTracksCount = sourceUser.prefTracks.filter(track => 
+      potentialMatch.prefTracks.includes(track)
     ).length;
     score += commonTracksCount;
   }
@@ -562,124 +584,9 @@ export function calculateMatchPercentage(sourceUser: User, potentialMatch: User)
   score += overlappingHours;
 
   // Calculate percentage based on maximum possible score
-  // Max possible score depends on user data, but we'll use a reasonable baseline
   const maxPossibleScore = calculateMaxPossibleScore(sourceUser, potentialMatch);
   
   return Math.round((score / maxPossibleScore) * 100);
-}
-
-/**
- * Checks if learning styles are compatible
- */
-function checkLearningStyleCompatibility(sourceUser: User, potentialMatch: User): boolean {
-  // You'll need to add learningStyle field to User interface
-  // For now, returning true as placeholder
-  if (!sourceUser.learningStyle || !potentialMatch.learningStyle) {
-    return false;
-  }
-  return sourceUser.learningStyle === potentialMatch.learningStyle;
-}
-
-/**
- * Calculates the number of overlapping hours between two users considering timezone differences
- */
-function calculateOverlappingHours(sourceUser: User, potentialMatch: User): number {
-  const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday'];
-  const timeSlots = ['morning', 'noon', 'evening', 'lateNight'] as const;
-  let totalOverlappingHours = 0;
-
-  // Calculate timezone difference
-  const timezoneOffset = potentialMatch.utcOffset - sourceUser.utcOffset;
-
-  for (const day of days) {
-    for (const timeSlot of timeSlots) {
-      // Check if source user is available at this time - UPDATED ACCESS
-      if (!sourceUser[day] || !sourceUser[day][timeSlot]) {
-        continue;
-      }
-
-      // Get the overlapping hours for this specific time slot
-      const overlappingHours = getTimeSlotOverlappingHours(
-        day, 
-        timeSlot, 
-        timezoneOffset, 
-        potentialMatch
-      );
-      
-      totalOverlappingHours += overlappingHours;
-    }
-  }
-
-  return totalOverlappingHours;
-}
-
-/**
- * Calculates overlapping hours for a specific time slot
- */
-function getTimeSlotOverlappingHours(
-  sourceDay: string,
-  sourceTimeSlot: string,
-  timezoneOffset: number,
-  potentialPair: User
-): number {
-  const sourceSlot = TIME_SLOTS[sourceTimeSlot];
-  
-  // Convert source time to potential pair's timezone
-  const convertedStartHour = sourceSlot.start + timezoneOffset;
-  const convertedEndHour = sourceSlot.end + timezoneOffset;
-
-  // Handle day overflow/underflow
-  const { day: convertedDay, normalizedStart, normalizedEnd } = 
-    normalizeDayAndTime(sourceDay, convertedStartHour, convertedEndHour);
-
-  // Check each time slot in the converted day for overlap
-  const timeSlots = ['morning', 'noon', 'evening', 'lateNight'] as const;
-  let totalOverlap = 0;
-  
-  for (const pairTimeSlot of timeSlots) {
-    // UPDATED ACCESS - use flat structure
-    if (!potentialPair[convertedDay] || !potentialPair[convertedDay][pairTimeSlot]) {
-      continue;
-    }
-
-    const pairSlot = TIME_SLOTS[pairTimeSlot];
-    
-    // Calculate the actual overlapping hours
-    const overlapHours = calculateHourOverlap(
-      normalizedStart, 
-      normalizedEnd, 
-      pairSlot.start, 
-      pairSlot.end
-    );
-    
-    totalOverlap += overlapHours;
-  }
-
-  return totalOverlap;
-}
-
-/**
- * Calculates the number of overlapping hours between two time ranges
- */
-function calculateHourOverlap(start1: number, end1: number, start2: number, end2: number): number {
-  // Handle late night special case (crosses midnight)
-  if (end1 > 24) {
-    const beforeMidnight = calculateHourOverlap(start1, 24, start2, end2);
-    const afterMidnight = calculateHourOverlap(0, end1 - 24, start2, end2);
-    return beforeMidnight + afterMidnight;
-  }
-  
-  if (end2 > 24) {
-    const beforeMidnight = calculateHourOverlap(start1, end1, start2, 24);
-    const afterMidnight = calculateHourOverlap(start1, end1, 0, end2 - 24);
-    return beforeMidnight + afterMidnight;
-  }
-
-  // Normal overlap calculation
-  const overlapStart = Math.max(start1, start2);
-  const overlapEnd = Math.min(end1, end2);
-  
-  return Math.max(0, overlapEnd - overlapStart);
 }
 
 /**
@@ -688,20 +595,16 @@ function calculateHourOverlap(start1: number, end1: number, start2: number, end2
 function calculateMaxPossibleScore(sourceUser: User, potentialMatch: User): number {
   let maxScore = 0;
 
-  // Base compatibility points
-  maxScore += 4; // gender, learning skill, english level, learning style
+  // Base compatibility points (excluding learning skill which is commented out)
+  maxScore += 3; // gender, english level, learning style
 
   // Maximum possible track points
-  if (sourceUser.preferredTracks && potentialMatch.preferredTracks) {
-    const maxTracks = Math.min(sourceUser.preferredTracks.length, potentialMatch.preferredTracks.length);
+  if (sourceUser.prefTracks && potentialMatch.prefTracks) {
+    const maxTracks = Math.min(sourceUser.prefTracks.length, potentialMatch.prefTracks.length);
     maxScore += maxTracks;
   }
 
-  // Maximum possible learning hour points (theoretical maximum)
-  // Each day has 4 time slots, total possible hours per day varies
-  // Morning: 7 hours, Noon: 6 hours, Evening: 3 hours, LateNight: 5 hours
-  // Total: 21 hours per day × 5 days = 105 hours maximum
-  // But we'll use a more realistic maximum based on actual availability
+  // Maximum possible learning hour points
   const sourceAvailableHours = calculateTotalAvailableHours(sourceUser);
   const pairAvailableHours = calculateTotalAvailableHours(potentialMatch);
   const maxPossibleHours = Math.min(sourceAvailableHours, pairAvailableHours);
@@ -711,25 +614,16 @@ function calculateMaxPossibleScore(sourceUser: User, potentialMatch: User): numb
 }
 
 /**
- * Calculates total available hours for a user
+ * Checks learning style compatibility
  */
-function calculateTotalAvailableHours(user: User): number {
-  const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday'];
-  const timeSlots = ['morning', 'noon', 'evening', 'lateNight'] as const;
-  let totalHours = 0;
-
-  for (const day of days) {
-    for (const timeSlot of timeSlots) {
-      // UPDATED ACCESS - use flat structure
-      if (user[day] && user[day][timeSlot]) {
-        const slot = TIME_SLOTS[timeSlot];
-        const hours = slot.end - slot.start;
-        totalHours += hours > 24 ? hours - 24 : hours; // Handle overnight slots
-      }
-    }
+export function checkLearningStyleCompatibility(sourceUser: User, potentialMatch: User): boolean {
+  // If either user doesn't have a learning style specified, consider it compatible
+  if (!sourceUser.learningStyle || !potentialMatch.learningStyle) {
+    return true;
   }
-
-  return totalHours;
+  
+  // For now, exact match required, but you can adjust this logic
+  return sourceUser.learningStyle === potentialMatch.learningStyle;
 }
 
 /**
@@ -737,8 +631,8 @@ function calculateTotalAvailableHours(user: User): number {
  */
 export function checkUserCompatibilityDebug(sourceUser: User, potentialPair: User): boolean {
   console.log('\n=== COMPATIBILITY CHECK ===');
-  console.log('Source User:', sourceUser._id, sourceUser.fullName);
-  console.log('Potential Pair:', potentialPair._id, potentialPair.fullName);
+  console.log('Source User:', sourceUser._id, sourceUser.fullName || 'Unknown');
+  console.log('Potential Pair:', potentialPair._id, potentialPair.fullName || 'Unknown');
 
   // 1. Check country compatibility
   console.log('\n1. COUNTRY COMPATIBILITY:');
@@ -751,15 +645,15 @@ export function checkUserCompatibilityDebug(sourceUser: User, potentialPair: Use
     return false;
   }
 
-  // 2. Check gender preference compatibility - Updated call and logging
+  // 2. Check gender compatibility
   console.log('\n2. GENDER COMPATIBILITY:');
-  console.log('Source gender:', sourceUser?.gender, 'prefGender:', sourceUser?.prefGender);
-  console.log('Pair gender:', potentialPair?.gender, 'prefGender:', potentialPair?.prefGender);
+  console.log('Source gender:', sourceUser.gender, 'prefers:', sourceUser.prefGender);
+  console.log('Pair gender:', potentialPair.gender, 'prefers:', potentialPair.prefGender);
   const genderCompatible = checkGenderCompatibility(
-    sourceUser?.gender, 
-    sourceUser?.prefGender, 
-    potentialPair?.gender, 
-    potentialPair?.prefGender
+    sourceUser.gender,
+    sourceUser.prefGender,
+    potentialPair.gender,
+    potentialPair.prefGender
   );
   console.log('Gender compatible:', genderCompatible);
   if (!genderCompatible) {
@@ -767,23 +661,23 @@ export function checkUserCompatibilityDebug(sourceUser: User, potentialPair: Use
     return false;
   }
 
-  // 3. Check learning skill compatibility
-  console.log('\n3. LEARNING SKILL COMPATIBILITY:');
-  console.log('Source skillLevel:', sourceUser.skillLevel, 'desiredSkillLevel:', sourceUser.desiredSkillLevel);
-  console.log('Pair skillLevel:', potentialPair.skillLevel, 'desiredSkillLevel:', potentialPair.desiredSkillLevel);
-  // const learningSkillCompatible = checkLearningSkillCompatibility(sourceUser, potentialPair);
-  // console.log('Learning skill compatible:', learningSkillCompatible);
-  // if (!learningSkillCompatible) {
+  // 3. Check learning skill compatibility (commented out in main function)
+  // console.log('\n3. LEARNING SKILL COMPATIBILITY:');
+  // console.log('Source skill:', sourceUser.skillLevel, 'desired:', sourceUser.desiredSkillLevel);
+  // console.log('Pair skill:', potentialPair.skillLevel, 'desired:', potentialPair.desiredSkillLevel);
+  // const skillCompatible = checkLearningSkillCompatibility(sourceUser, potentialPair);
+  // console.log('Skill compatible:', skillCompatible);
+  // if (!skillCompatible) {
   //   console.log('❌ FAILED: Learning skill compatibility');
   //   return false;
   // }
 
   // 4. Check English level compatibility
   console.log('\n4. ENGLISH LEVEL COMPATIBILITY:');
-  console.log('Source englishLevel:', sourceUser.englishLevel, 'desiredEnglishLevel:', sourceUser.desiredEnglishLevel);
-  console.log('Pair englishLevel:', potentialPair.englishLevel, 'desiredEnglishLevel:', potentialPair.desiredEnglishLevel);
+  console.log('Source English:', sourceUser.englishLevel, 'desired:', sourceUser.desiredEnglishLevel);
+  console.log('Pair English:', potentialPair.englishLevel, 'desired:', potentialPair.desiredEnglishLevel);
   const englishCompatible = checkEnglishLevelCompatibility(sourceUser, potentialPair);
-  console.log('English level compatible:', englishCompatible);
+  console.log('English compatible:', englishCompatible);
   if (!englishCompatible) {
     console.log('❌ FAILED: English level compatibility');
     return false;
@@ -791,8 +685,8 @@ export function checkUserCompatibilityDebug(sourceUser: User, potentialPair: Use
 
   // 5. Check track compatibility
   console.log('\n5. TRACK COMPATIBILITY:');
-  console.log('Source tracks:', sourceUser.preferredTracks);
-  console.log('Pair tracks:', potentialPair.preferredTracks);
+  console.log('Source tracks:', sourceUser.prefTracks);
+  console.log('Pair tracks:', potentialPair.prefTracks);
   const trackCompatible = checkTrackCompatibility(sourceUser, potentialPair);
   console.log('Track compatible:', trackCompatible);
   if (!trackCompatible) {
@@ -800,14 +694,9 @@ export function checkUserCompatibilityDebug(sourceUser: User, potentialPair: Use
     return false;
   }
 
-  // 6. Check learning time compatibility - UPDATED ACCESS
+  // 6. Check learning time compatibility - USE DEBUG VERSION
   console.log('\n6. LEARNING TIME COMPATIBILITY:');
-  console.log('Source UTC:', sourceUser.utcOffset);
-  console.log('Pair UTC:', potentialPair.utcOffset);
-  console.log('Source learning times available:', countAvailableTimes(sourceUser));
-  console.log('Pair learning times available:', countAvailableTimes(potentialPair));
-  const timeCompatible = checkLearningTimeCompatibility(sourceUser, potentialPair);
-  console.log('Learning time compatible:', timeCompatible);
+  const timeCompatible = checkLearningTimeCompatibilityDebug(sourceUser, potentialPair);
   if (!timeCompatible) {
     console.log('❌ FAILED: Learning time compatibility');
     return false;
@@ -817,91 +706,17 @@ export function checkUserCompatibilityDebug(sourceUser: User, potentialPair: Use
   console.log('\n7. MATCHING LIMIT COMPATIBILITY:');
   console.log('Pair matchTo:', potentialPair.matchTo, 'prefNumberOfMatches:', potentialPair.prefNumberOfMatches);
   const limitCompatible = checkMatchingLimitCompatibility(potentialPair);
-  console.log('Matching limit compatible:', limitCompatible);
+  console.log('Limit compatible:', limitCompatible);
   if (!limitCompatible) {
     console.log('❌ FAILED: Matching limit compatibility');
     return false;
   }
 
+  // 8. Calculate and display match percentage
+  console.log('\n8. MATCH PERCENTAGE:');
+  const matchPercentage = calculateMatchPercentage(sourceUser, potentialPair);
+  console.log('Match percentage:', matchPercentage + '%');
+
   console.log('\n✅ ALL CHECKS PASSED!');
   return true;
-}
-
-/**
- * Debug version of checkLearningTimeCompatibility
- */
-function checkLearningTimeCompatibilityDebug(sourceUser: User, potentialPair: User): boolean {
-  console.log('\n--- DETAILED LEARNING TIME DEBUG ---');
-  
-  const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday'];
-  const timeSlots = ['morning', 'noon', 'evening', 'lateNight'] as const;
-
-  // Check if learning times exist
-  if (!sourceUser.learningTimes) {
-    console.log('❌ Source user has no learning times');
-    return false;
-  }
-  
-  if (!potentialPair.learningTimes) {
-    console.log('❌ Potential pair has no learning times');
-    return false;
-  }
-
-  // Calculate timezone difference - FIX THE FIELD NAME
-  console.log('Source utcOffset:', sourceUser.utcOffset);
-  console.log('Pair utcOffset:', potentialPair.utcOffset);
-  
-  // CHECK: The issue might be here - using utc vs utcOffset
-  const timezoneOffset = potentialPair.utcOffset - sourceUser.utcOffset;
-  console.log('Timezone offset:', timezoneOffset);
-
-  let foundOverlap = false;
-
-  for (const day of days) {
-    console.log(`\nChecking ${day}:`);
-    
-    if (!sourceUser.learningTimes[day] || !potentialPair.learningTimes[day]) {
-      console.log(`  Missing learning times for ${day}`);
-      continue;
-    }
-
-    for (const timeSlot of timeSlots) {
-      if (!sourceUser.learningTimes[day][timeSlot]) {
-        continue;
-      }
-
-      console.log(`  Source available at ${day} ${timeSlot}`);
-
-      // Convert source user's time to potential pair's timezone and check overlap
-      const overlap = isTimeOverlapping(day, timeSlot, timezoneOffset, potentialPair);
-      console.log(`  Overlap found: ${overlap}`);
-      
-      if (overlap) {
-        foundOverlap = true;
-        console.log(`  ✅ OVERLAP FOUND: ${day} ${timeSlot}`);
-        // Don't return immediately, let's see all overlaps
-      }
-    }
-  }
-
-  console.log(`\nFinal result: ${foundOverlap ? '✅' : '❌'} Learning time compatible: ${foundOverlap}`);
-  return foundOverlap;
-}
-
-// Helper function to count available learning times - UPDATED
-function countAvailableTimes(user: User): number {
-  let count = 0;
-  const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday'];
-  const timeSlots = ['morning', 'noon', 'evening', 'lateNight'];
-  
-  for (const day of days) {
-    if (user[day]) {
-      for (const slot of timeSlots) {
-        if (user[day][slot]) {
-          count++;
-        }
-      }
-    }
-  }
-  return count;
 }

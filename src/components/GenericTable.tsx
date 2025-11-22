@@ -68,13 +68,14 @@ const ICON_MAP: Record<string, React.ComponentType<any>> = {
 export interface GenericTableProps {
   columns: TableColumn[];
   data: any[];
-  total?: number;
+  total: number;
   loading?: boolean;
-  onSearch?: (search: string, page: number, pageSize: number) => void;
-  pageSize?: number;
-  // changed: pass the full row (not only id)
+  onSearch?: (searchTerm: string) => void;
   onRowClick?: (row: any) => void;
-  selectedRowId?: string;
+  currentPage?: number;  // Add this
+  onPageChange?: (page: number) => void;  // Add this
+  pageSize?: number;  // Add this
+  selectedRowId?: string;  // Add this
 }
 
 const DEFAULT_PAGE_SIZE = 10;
@@ -86,13 +87,15 @@ interface DropdownState {
 }
 
 export const GenericTable: React.FC<GenericTableProps> = ({ 
-  columns = [], // Add default empty array
-  data = [], // Add default empty array
-  total = 0,
+  columns, 
+  data, 
+  total,
   loading = false,
   onSearch,
-  pageSize = DEFAULT_PAGE_SIZE,
   onRowClick,
+  currentPage = 1,  // Default value
+  onPageChange,  // Handler from parent
+  pageSize = DEFAULT_PAGE_SIZE,
   selectedRowId
 }) => {
   const [search, setSearch] = useState("");
@@ -108,17 +111,16 @@ export const GenericTable: React.FC<GenericTableProps> = ({
       setSearch(value);
       setPage(1);
       if (onSearch) {
-        onSearch(value, 1, pageSize);
+        onSearch(value);
       }
     }, 300),
-    [onSearch, pageSize]
+    [onSearch]
   );
 
   // Handle pagination changes
-  const handlePageChange = (newPage: number) => {
-    setPage(newPage);
-    if (onSearch) {
-      onSearch(search, newPage, pageSize);
+  const handlePageChange = (newPage: { page: number }) => {
+    if (onPageChange) {
+      onPageChange(newPage.page);
     }
   };
 
@@ -330,15 +332,15 @@ export const GenericTable: React.FC<GenericTableProps> = ({
       </table>
       <div className="pagination">
         <button
-          onClick={() => handlePageChange(page - 1)}
+          onClick={() => handlePageChange({ page: page - 1 })}
           disabled={page === 1 || loading}
           className="pagination-button"
         >
           Prev
         </button>
-        <span className="pagination-text">{page} / {totalPages || 1}</span>
+        <span className="pagination-text">{currentPage} / {totalPages || 1}</span>
         <button
-          onClick={() => handlePageChange(page + 1)}
+          onClick={() => handlePageChange({ page: page + 1 })}
           disabled={page === totalPages || loading || totalPages === 0}
           className="pagination-button"
         >

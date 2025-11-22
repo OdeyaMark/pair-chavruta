@@ -2,7 +2,7 @@ import React, { useEffect, type FC, useState, useMemo, useCallback } from 'react
 import { Page, WixDesignSystemProvider, Box, Text, ToggleSwitch, Dropdown, FormField } from '@wix/design-system';
 import { GenericTable, TableColumn } from "../../../components/GenericTable";
 import '@wix/design-system/styles.global.css';
-import { fetchCMSData, fetchArchivedUsers } from '../../../data/cmsData';
+import { fetchCMSData, fetchArchivedUsers, archiveUser } from '../../../data/cmsData';
 import { dashboard } from '@wix/dashboard';
 import ContactPopup from '../../../components/contactPopup';
 
@@ -52,7 +52,7 @@ const DashboardPage: FC = () => {
     tel: ''
   });
   const [currentPage, setCurrentPage] = useState(1);
-    const pageSize = 10;
+  const pageSize = 10;
 
   // Fetch data once and when showArchived changes
   useEffect(() => {
@@ -122,8 +122,9 @@ const DashboardPage: FC = () => {
         user.country.toLowerCase().includes(search)
       );
     }
-
+    // Pagination
      const startIdx = (currentPage - 1) * pageSize;
+     console.log("Current Page:", currentPage, "Start Index:", startIdx);
     const paginatedData = filtered.slice(startIdx, startIdx + pageSize);
     console.log("Filtered and paginated data:", paginatedData);
     return {
@@ -135,7 +136,6 @@ const DashboardPage: FC = () => {
  
   // Event handlers that accept row objects
   const handleDetailsClick = useCallback((row: UserRow) => {
-    console.log("Opening modal for user ID:", row.id);
     dashboard.openModal({
       modalId: '45308f7c-1309-42a3-8a0b-00611cab9ebe', 
       params: { userId: row.id }
@@ -185,7 +185,7 @@ const DashboardPage: FC = () => {
     try {
       // Implement archive logic here
       console.log("Archiving user:", row.id);
-      // await archiveUser(row.id);
+      await archiveUser(row.id);
       
       // Refresh data after archiving
       await fetchInitialData();
@@ -262,6 +262,12 @@ const DashboardPage: FC = () => {
     setSelectedHasChavruta('');
   }, []);
   
+  // Add handler for page change
+  const handlePageChange = useCallback((page: number) => {
+    console.log("Page changed to:", page);
+    setCurrentPage(page);
+  }, []);
+
   return (
     <WixDesignSystemProvider features={{ newColorsBranding: true }}>
       <Page>
@@ -372,14 +378,17 @@ const DashboardPage: FC = () => {
                 )}
               </Box>
 
-              {/* Table Section - Updated to use direct data passing */}
+              {/* Table Section - Add onPageChange prop */}
               <GenericTable 
                 columns={columns} 
-                data={displayData.data}                    // Direct data passing
-                total={displayData.total}           // Total for pagination
+                data={displayData.data}
+                total={displayData.total}
                 loading={loading}
-                onSearch={(search) => setSearchTerm(search)}  // Simple search handler
-                onRowClick={(row) => handleDetailsClick(row)} // Optional: row click opens details
+                onSearch={(search) => setSearchTerm(search)}
+                onRowClick={(row) => handleDetailsClick(row)}
+                currentPage={currentPage}  // Pass current page
+                onPageChange={handlePageChange}  // Pass page change handler
+                pageSize={pageSize}  // Pass page size
               />
               
               {contactPopup.isOpen && (

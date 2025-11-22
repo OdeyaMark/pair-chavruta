@@ -281,3 +281,49 @@ margin-top: 0;
 .action-icon:hover {
   color: #357abd;
 }
+
+/* Match Popup Overlay */
+.match-popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.match-popup-content {
+  background: white;
+  border-radius: 8px;
+  padding: 24px;
+  max-width: 1200px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.compatibility-check {
+  color: #4CAF50;
+}
+
+.compatibility-x {
+  color: #F44336;
+}
+
+.close-button {
+  background: #007bff;
+  color: white;
+  border: none;
+  padding: 8px 24px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.close-button:hover {
+  background: #0056b3;
+}
