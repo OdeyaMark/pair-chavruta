@@ -8,6 +8,7 @@ import { dashboard } from '@wix/dashboard';
 import '../../../styles/matches.css';
 import { checkUserCompatibilityDebug, calculateMatchPercentage } from '../../../data/matchLogic';
 
+
 interface User {
   id: string;
   fullName: string;
@@ -43,11 +44,11 @@ const DashboardPage: FC = () => {
   
   // UI state
   const [showAllUsers, setShowAllUsers] = useState(false);
-  const [showOnlyMatching, setShowOnlyMatching] = useState(true); // Changed default to true
+  const [showOnlyMatching, setShowOnlyMatching] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [matchSearchTerm, setMatchSearchTerm] = useState('');
   
-  // Pagination state
+  // Pagination state - separate for each table
   const [usersCurrentPage, setUsersCurrentPage] = useState(1);
   const [matchesCurrentPage, setMatchesCurrentPage] = useState(1);
   const usersPageSize = 10;
@@ -62,11 +63,12 @@ const DashboardPage: FC = () => {
     fetchInitialData();
   }, []);
 
-  // Reset pages when filters change
+  // Reset users page when filters change
   useEffect(() => {
     setUsersCurrentPage(1);
   }, [showAllUsers, searchTerm]);
 
+  // Reset matches page when filters change
   useEffect(() => {
     setMatchesCurrentPage(1);
   }, [showOnlyMatching, matchSearchTerm, selectedUser]);
@@ -142,10 +144,10 @@ const DashboardPage: FC = () => {
 
   // Computed filtered data for matches table
   const matchesFilteredData = useMemo(() => {
-    // Filter based on showOnlyMatching toggle - only filter out users with 0% match when toggle is on
+    // Filter based on showOnlyMatching toggle
     let filtered = showOnlyMatching 
       ? potentialMatches.filter(match => match.isCompatible && (match.matchPercentage || 0) > 0)
-      : potentialMatches; // Show all when toggle is off, but still calculate match percentage
+      : potentialMatches;
 
     // Apply search filter
     if (matchSearchTerm) {
@@ -166,15 +168,26 @@ const DashboardPage: FC = () => {
     return matchesFilteredData.slice(startIndex, endIndex);
   }, [matchesFilteredData, matchesCurrentPage, matchesPageSize]);
 
-  // Search handlers with pagination reset
-  const handleUsersSearch = useCallback((search: string, page: number, pageSize: number) => {
-    setSearchTerm(search);
+  // Pagination handlers - separate for each table
+  const handleUsersPageChange = useCallback((page: number) => {
+    console.log("Users page changed to:", page);
     setUsersCurrentPage(page);
   }, []);
 
-  const handleMatchesSearch = useCallback((search: string, page: number, pageSize: number) => {
-    setMatchSearchTerm(search);
+  const handleMatchesPageChange = useCallback((page: number) => {
+    console.log("Matches page changed to:", page);
     setMatchesCurrentPage(page);
+  }, []);
+
+  // Search handlers - separate for each table
+  const handleUsersSearch = useCallback((search: string) => {
+    setSearchTerm(search);
+    setUsersCurrentPage(1); // Reset to page 1 on search
+  }, []);
+
+  const handleMatchesSearch = useCallback((search: string) => {
+    setMatchSearchTerm(search);
+    setMatchesCurrentPage(1); // Reset to page 1 on search
   }, []);
 
   // Event handlers
@@ -186,11 +199,12 @@ const DashboardPage: FC = () => {
   }, []);
 
   const handleMatchRowClick = useCallback((row: User) => {
-    // dashboard.openModal({modalId: 'f03b650d-46f9-43ce-92b0-9bba324c1a20', params: { user1: selectedUser, user2: row }});
+    if (selectedUser && row) {
+      // openMatchModal(selectedUser, row);
+    }
   }, [selectedUser]);
 
   const handleUserSelect = useCallback(async (row: User) => {
-    console.log('Selecting user:', row.fullName);
     
     // Process ALL users except the selected one
     const allPotentialUsers = allUsers.filter(user => user.id !== row.id);
@@ -542,10 +556,12 @@ const DashboardPage: FC = () => {
                     data={usersPaginatedData}
                     total={usersFilteredData.length}
                     loading={loading}
-                    pageSize={usersPageSize}
                     onSearch={handleUsersSearch}
                     onRowClick={(row) => handleUserSelect(row)}
                     selectedRowId={selectedUser?.id}
+                    currentPage={usersCurrentPage}
+                    onPageChange={handleUsersPageChange}
+                    pageSize={usersPageSize}
                   />
                 </Box>
               </Box>
@@ -586,9 +602,11 @@ const DashboardPage: FC = () => {
                       data={matchesPaginatedData}
                       total={matchesFilteredData.length}
                       loading={false}
-                      pageSize={matchesPageSize}
                       onSearch={handleMatchesSearch}
                       onRowClick={handleMatchRowClick}
+                      currentPage={matchesCurrentPage}
+                      onPageChange={handleMatchesPageChange}
+                      pageSize={matchesPageSize}
                     />
                   ) : (
                     <Box padding="20px" align="center">

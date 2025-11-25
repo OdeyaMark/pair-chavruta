@@ -172,6 +172,23 @@ const DashboardPage: FC = () => {
     return showArchived ? archivedChavrutas : activeChavrutas;
   }, [showArchived, activeChavrutas, archivedChavrutas]);
 
+  // Add handler for page change
+  const handlePageChange = useCallback((page: number) => {
+    console.log("Page changed to:", page);
+    setCurrentPage(page);
+  }, []);
+
+  // Add handler for search
+  const handleSearchChange = useCallback((searchTerm: string) => {
+    setSearch(searchTerm);
+    setCurrentPage(1); // Reset to page 1 on new search
+  }, []);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedYear, selectedTrack, selectedStatus, showArchived]);
+
   // Filtered and paginated data for immediate display
   const filteredAndPaginatedData = useMemo(() => {
     let filteredData = [...currentChavrutas];
@@ -208,12 +225,6 @@ const DashboardPage: FC = () => {
       total: filteredData.length
     };
   }, [currentChavrutas, selectedYear, selectedTrack, selectedStatus, search, currentPage]);
-
-  // Handle search and pagination events
-  const handleSearch = useCallback((searchTerm: string, page: number, size: number) => {
-    setSearch(searchTerm);
-    setCurrentPage(page);
-  }, []);
 
   // Add handler for notes click
   const handleNotesClick = (row: ChavrutaRow) => {
@@ -485,7 +496,7 @@ const DashboardPage: FC = () => {
                       { id: '', value: 'All Tracks' },
                       ...filters.tracks
                     ]}
-                    selectedId={selectedTrack} // Use the display value directly
+                    selectedId={selectedTrack}
                     onSelect={(option) => setSelectedTrack(option?.id?.toString() || '')}
                   />
                 </div>
@@ -496,7 +507,7 @@ const DashboardPage: FC = () => {
                       { id: '', value: 'All Statuses' },
                       ...filters.statuses
                     ]}
-                    selectedId={selectedStatus} // Use the display value directly
+                    selectedId={selectedStatus}
                     onSelect={(option) => setSelectedStatus(option?.id?.toString() || '')}
                   />
                 </div>
@@ -532,8 +543,11 @@ const DashboardPage: FC = () => {
               data={filteredAndPaginatedData.data}
               total={filteredAndPaginatedData.total}
               loading={loading}
-              onSearch={handleSearch}
-              pageSize={10}
+              onSearch={handleSearchChange}  // Updated prop name
+              onRowClick={handleDetailsClick}
+              currentPage={currentPage}  // Add current page prop
+              onPageChange={handlePageChange}  // Add page change handler
+              pageSize={pageSize}  // Add page size prop
             />
           </div>
         </Page.Content>

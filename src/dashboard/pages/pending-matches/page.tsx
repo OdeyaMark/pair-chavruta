@@ -23,6 +23,8 @@ const DashboardPage: FC = () => {
   const [pendingMatches, setPendingMatches] = useState<PendingMatch[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
 
   // Fetch data once on component mount
   useEffect(() => {
@@ -60,17 +62,40 @@ const DashboardPage: FC = () => {
     }
   };
 
-  // Computed filtered data - updates immediately when pendingMatches or searchTerm changes
-  const displayData = useMemo(() => {
-    if (!searchTerm) return pendingMatches;
+  // Add handler for page change
+  const handlePageChange = useCallback((page: number) => {
+    console.log("Page changed to:", page);
+    setCurrentPage(page);
+  }, []);
 
-    const search = searchTerm.toLowerCase();
-    return pendingMatches.filter(match =>
-      match.israeliParticipant.toLowerCase().includes(search) ||
-      match.diasporaParticipant.toLowerCase().includes(search) ||
-      match.track.toLowerCase().includes(search)
-    );
-  }, [pendingMatches, searchTerm]);
+  // Add handler for search
+  const handleSearchChange = useCallback((search: string) => {
+    setSearchTerm(search);
+    setCurrentPage(1); // Reset to page 1 on new search
+  }, []);
+
+  // Computed filtered and paginated data
+  const displayData = useMemo(() => {
+    let filtered = pendingMatches;
+
+    // Apply search filter
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase();
+      filtered = pendingMatches.filter(match =>
+        match.israeliParticipant.toLowerCase().includes(search) ||
+        match.diasporaParticipant.toLowerCase().includes(search) 
+      );
+    }
+
+    // Apply pagination
+    const startIdx = (currentPage - 1) * pageSize;
+    const paginatedData = filtered.slice(startIdx, startIdx + pageSize);
+
+    return {
+      data: paginatedData,
+      total: filtered.length
+    };
+  }, [pendingMatches, searchTerm, currentPage]);
 
   // Event handlers that update the single source of truth
   const handleActivate = useCallback(async (row: PendingMatch) => {
@@ -158,11 +183,14 @@ const DashboardPage: FC = () => {
           <Box>
             <GenericTable
               columns={columns}
-              data={displayData}                    // Direct data passing
-              total={displayData.length}           // Total for pagination
+              data={displayData.data}              // Paginated data
+              total={displayData.total}            // Total filtered count
               loading={loading}
-              onSearch={(search) => setSearchTerm(search)}  // Simple search handler
-              onRowClick={(row) => handleActivate(row)}     // Optional: row click activates
+              onSearch={handleSearchChange}        // Updated to reset page
+              onRowClick={(row) => handleActivate(row)}
+              currentPage={currentPage}            // Add current page prop
+              onPageChange={handlePageChange}      // Add page change handler
+              pageSize={pageSize}                  // Add page size prop
             />
           </Box>
         </Page.Content>

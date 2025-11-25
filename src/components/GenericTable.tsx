@@ -93,13 +93,12 @@ export const GenericTable: React.FC<GenericTableProps> = ({
   loading = false,
   onSearch,
   onRowClick,
-  currentPage = 1,  // Default value
-  onPageChange,  // Handler from parent
+  currentPage = 1,
+  onPageChange,
   pageSize = DEFAULT_PAGE_SIZE,
   selectedRowId
 }) => {
   const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
   const [dropdown, setDropdown] = useState<DropdownState>({
     isOpen: false,
     rowId: null,
@@ -109,18 +108,21 @@ export const GenericTable: React.FC<GenericTableProps> = ({
   const debouncedSearch = useCallback(
     debounce((value: string) => {
       setSearch(value);
-      setPage(1);
+      // Reset to page 1 on search
+      if (onPageChange) {
+        onPageChange(1);
+      }
       if (onSearch) {
         onSearch(value);
       }
     }, 300),
-    [onSearch]
+    [onSearch, onPageChange]
   );
 
   // Handle pagination changes
-  const handlePageChange = (newPage: { page: number }) => {
+  const handlePageChange = (newPage: number) => {
     if (onPageChange) {
-      onPageChange(newPage.page);
+      onPageChange(newPage);
     }
   };
 
@@ -308,7 +310,7 @@ export const GenericTable: React.FC<GenericTableProps> = ({
             safeData.map((row, idx) => (
               <tr 
                 key={row?.id ?? idx}
-                onClick={() => onRowClick && onRowClick(row)} // <- pass row
+                onClick={() => onRowClick && onRowClick(row)}
                 className={`table-row ${onRowClick ? 'clickable-row' : ''} ${selectedRowId === row?.id ? 'selected-row' : ''}`}
               >
                 {safeColumns.map(col => (
@@ -332,16 +334,16 @@ export const GenericTable: React.FC<GenericTableProps> = ({
       </table>
       <div className="pagination">
         <button
-          onClick={() => handlePageChange({ page: page - 1 })}
-          disabled={page === 1 || loading}
+          onClick={() => handlePageChange(currentPage - 1)}  // Use currentPage instead of page
+          disabled={currentPage === 1 || loading}
           className="pagination-button"
         >
           Prev
         </button>
         <span className="pagination-text">{currentPage} / {totalPages || 1}</span>
         <button
-          onClick={() => handlePageChange({ page: page + 1 })}
-          disabled={page === totalPages || loading || totalPages === 0}
+          onClick={() => handlePageChange(currentPage + 1)}  // Use currentPage instead of page
+          disabled={currentPage === totalPages || loading || totalPages === 0}
           className="pagination-button"
         >
           Next
