@@ -104,35 +104,40 @@ function checkCountryCompatibility(sourceUser: User, potentialPair: User): boole
 
 /**
  * Checks if gender preferences are compatible
- * @param sourceGender - The gender of the source user
- * @param sourcePrefGender - The gender preference of the source user
- * @param potentialGender - The gender of the potential pair
- * @param potentialPrefGender - The gender preference of the potential pair
+ * @param sourceGender - The gender of the source user (can be string or array)
+ * @param sourcePrefGender - The gender preference of the source user (can be string or array)
+ * @param potentialGender - The gender of the potential pair (can be string or array)
+ * @param potentialPrefGender - The gender preference of the potential pair (can be string or array)
  * @returns boolean - true if they are compatible, false otherwise
  */
 export function checkGenderCompatibility(
-  sourceGender: string, 
-  sourcePrefGender: string | undefined, 
-  potentialGender: string, 
-  potentialPrefGender: string | undefined
+  sourceGender: string | string[] | undefined, 
+  sourcePrefGender: string | string[] | undefined, 
+  potentialGender: string | string[] | undefined, 
+  potentialPrefGender: string | string[] | undefined
 ): boolean {
+  // Destructure arrays to get the first element
+  const sourceGenderStr = Array.isArray(sourceGender) ? sourceGender[0] : sourceGender;
+  const sourcePrefGenderStr = Array.isArray(sourcePrefGender) ? sourcePrefGender[0] : sourcePrefGender;
+  const potentialGenderStr = Array.isArray(potentialGender) ? potentialGender[0] : potentialGender;
+  const potentialPrefGenderStr = Array.isArray(potentialPrefGender) ? potentialPrefGender[0] : potentialPrefGender;
 
-  // Check source user's preference
-  if (sourcePrefGender && sourcePrefGender !== 'not specified') {
-    if (sourcePrefGender === 'male' && potentialGender !== 'male') {
+  // Check source user's preference - source user must be satisfied with potential's gender
+  if (sourcePrefGenderStr && sourcePrefGenderStr !== 'not specified') {
+    if (sourcePrefGenderStr === 'male' && potentialGenderStr !== 'male') {
       return false;
     }
-    if (sourcePrefGender === 'female' && potentialGender !== 'female') {
+    if (sourcePrefGenderStr === 'female' && potentialGenderStr !== 'female') {
       return false;
     }
   }
 
-  // Check potential pair's preference - FIXED: Added 'not specified' check
-  if (potentialPrefGender && potentialPrefGender !== 'not specified') {
-    if (potentialPrefGender === 'male' && sourceGender !== 'male') {
+  // Check potential pair's preference - potential user must be satisfied with source's gender
+  if (potentialPrefGenderStr && potentialPrefGenderStr !== 'not specified') {
+    if (potentialPrefGenderStr === 'male' && sourceGenderStr !== 'male') {
       return false;
     }
-    if (potentialPrefGender === 'female' && sourceGender !== 'female') {
+    if (potentialPrefGenderStr === 'female' && sourceGenderStr !== 'female') {
       return false;
     }
   }
