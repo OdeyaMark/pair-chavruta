@@ -1,0 +1,7 @@
+{
+  "$schema": "https://dev.wix.com/wix-cli/schemas/dashboard-modal.json",
+  "id": "f03b650d-46f9-43ce-92b0-9bba324c1a20",
+  "title": "matches modal",
+  "width": 900,
+  "height": 800
+}

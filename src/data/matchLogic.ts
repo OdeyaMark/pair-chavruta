@@ -185,7 +185,7 @@ export function checkLearningSkillCompatibility(sourceUser: User, potentialPair:
   }
 
   // If the desired skill level is undefined, return true (no specific requirement)
-  if (requiredLevel === undefined) {
+  if (requiredLevel === undefined || requiredLevel === 4) {
     return true; // No desired skill level requirement
   }
 
@@ -260,6 +260,12 @@ export function checkEnglishLevelCompatibility(sourceUser: User, potentialPair: 
 export function checkTrackCompatibility(sourceUser: User, potentialPair: User): boolean {
   if (!sourceUser.prefTracks || !potentialPair.prefTracks) {
     return true;
+  }
+  if (!Array.isArray(sourceUser.prefTracks)){
+    console.log("source user preferred tracks is not an array:", sourceUser._id, sourceUser.prefTracks);
+  }
+  if (!Array.isArray(potentialPair.prefTracks)){
+    console.log("potential pair preferred tracks is not an array:", potentialPair._id, potentialPair.prefTracks);
   }
 
   // Check if there's any intersection between the track arrays

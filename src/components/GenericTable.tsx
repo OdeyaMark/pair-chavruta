@@ -208,9 +208,10 @@ export const GenericTable: React.FC<GenericTableProps> = ({
                           (options.length > 0 ? options[0].label : 'Select...');
 
       return (
-        <div className="editable-cell">
+        <div className="editable-cell" onClick={(e) => e.stopPropagation()}>
           <div
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation(); // Stop propagation here too
               if (options.length > 0) {
                 setDropdown({
                   isOpen: !dropdown.isOpen || dropdown.rowId !== row.id || dropdown.columnKey !== columnKey,

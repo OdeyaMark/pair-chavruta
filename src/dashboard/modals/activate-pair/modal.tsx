@@ -56,9 +56,7 @@ const Modal: FC = () => {
     }
 
     try {
-      console.log("activatePairInDatabase with params:", params);
       await activatePairInDatabase(params.chavrutaId, true);
-      console.log("sendPairingEmail with params:", params);
       await sendPairingEmail(params.sourceUserId, params.targetUserId, params.trackId);
       
       dashboard.showToast({
@@ -77,8 +75,7 @@ const Modal: FC = () => {
   };
 
   const handleSkipEmail = async () => {
-    console.log('handleSkipEmail called');
-    console.log('Current params:', params);
+    
     
     if (!params) {
       console.log('No params available, returning early');
@@ -104,7 +101,6 @@ const Modal: FC = () => {
   };
 
   const handleCancel = () => {
-    console.log('handleCancel called');
     dashboard.closeModal();
   };
 

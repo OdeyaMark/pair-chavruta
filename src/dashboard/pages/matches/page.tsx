@@ -19,7 +19,7 @@ interface User {
   desiredSkillLevel?: number;
   englishLevel?: number;
   desiredEnglishLevel?: number;
-  preferredTracks?: number[];
+  preferredTracks?: string[];
   utcOffset?: number;
   learningStyle?: number;
   matchTo?: number;
@@ -158,6 +158,9 @@ const DashboardPage: FC = () => {
       );
     }
 
+    // Sort by match percentage in descending order (highest first)
+    filtered = filtered.sort((a, b) => (b.matchPercentage || 0) - (a.matchPercentage || 0));
+
     return filtered;
   }, [potentialMatches, showOnlyMatching, matchSearchTerm]);
 
@@ -200,7 +203,14 @@ const DashboardPage: FC = () => {
 
   const handleMatchRowClick = useCallback((row: User) => {
     if (selectedUser && row) {
-      // openMatchModal(selectedUser, row);
+      dashboard.openModal({
+        modalId: 'f03b650d-46f9-43ce-92b0-9bba324c1a20',
+        params: { 
+          selectedUserId: selectedUser.id,
+          matchUserId: row.id
+        }
+      });
+      //
     }
   }, [selectedUser]);
 
@@ -262,9 +272,13 @@ const DashboardPage: FC = () => {
         : 0;
 
       // Calculate common tracks for display
-      const commonTrackIds = user.preferredTracks?.filter(track => 
-        row.preferredTracks?.includes(track)
-      ) || [];
+      
+      const userTracks = Array.isArray(user.preferredTracks) ? user.preferredTracks : [];
+      const rowTracks = Array.isArray(row.preferredTracks) ? row.preferredTracks : [];
+
+      const commonTrackIds = userTracks.filter(track => 
+        rowTracks.includes(track)
+      );
 
       const commonTracks = commonTrackIds.map(trackId => {
         const track = allTracks.find(t => t.id === trackId);
@@ -431,6 +445,10 @@ const DashboardPage: FC = () => {
     { 
       key: "commonTracks", 
       label: "Common Tracks / Select Track",
+      render: (row: User) => {
+        const commonTracks = row.commonTracks || [];
+        return commonTracks.join(', ');
+      },
       editable: (row: User) => {
         const isEditable = editableTrackRows.has(row.id);
         
