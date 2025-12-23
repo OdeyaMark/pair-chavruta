@@ -138,21 +138,21 @@ export async function formatUserData(rawUser: Record<string, any>): ChavrutaCard
 
   const chavrutaPreference: LabelValuePair[] = [
     { label: 'Gender Preference', value: rawUser.prefGender || 'No preference' },
-    { label: 'Learning Style', value: resolveIndexedValue(LearningStyles, rawUser.prefLearningStyle, 'LearningStyle') },
+    { label: 'Learning Style', value: resolveIndexedValue(LearningStyles, rawUser.prefLearningStyle)},
     { label: 'More Than One Chavruta', value: formatField(rawUser.prefNumberOfMatches) },
     // Conditional learning skill based on country
     { 
       label: rawUser.country === 'Israel' ? 'Desired Learning Skill' : 'Learning Skill', 
       value: rawUser.country === 'Israel' 
-        ? resolveIndexedValue(SkillLevels, rawUser.desiredSkillLevel, `DesiredSkill (${rawUser._id ?? 'unknown'})`)
-        : resolveIndexedValue(SkillLevels, rawUser.skillLevel, `Skill (${rawUser._id ?? 'unknown'})`)
+        ? resolveIndexedValue(SkillLevels, rawUser.desiredSkillLevel)
+        : resolveIndexedValue(SkillLevels, rawUser.skillLevel)
     },
     // Conditional English level based on country
     { 
       label: rawUser.country === 'Israel' ? 'English Level' : 'Desired English Level', 
       value: rawUser.country === 'Israel' 
-        ? resolveIndexedValue(EnglishLevels, rawUser.englishLevel, `EnglishLevel (${rawUser._id ?? 'unknown'})`)
-        : resolveIndexedValue(EnglishLevels, rawUser.desiredEnglishLevel, `DesiredEnglish (${rawUser._id ?? 'unknown'})`)
+        ? resolveIndexedValue(EnglishLevels, rawUser.englishLevel)
+        : resolveIndexedValue(EnglishLevels, rawUser.desiredEnglishLevel)
     },
   ];
 
