@@ -171,21 +171,17 @@ export function checkLearningSkillCompatibility(sourceUser: User, potentialPair:
 
   // Convert strings to numbers if needed
   if (typeof requiredLevel === 'string') {
-    requiredLevel = parseInt(requiredLevel, 10);
-    if (isNaN(requiredLevel)) {
-      requiredLevel = undefined;
-    }
+    const parsedRequired = parseInt(requiredLevel, 10);
+    requiredLevel = Number.isNaN(parsedRequired) ? undefined : parsedRequired;
   }
 
   if (typeof actualLevel === 'string') {
-    actualLevel = parseInt(actualLevel, 10);
-    if (isNaN(actualLevel)) {
-      actualLevel = undefined;
-    }
+    const parsedActual = parseInt(actualLevel, 10);
+    actualLevel = Number.isNaN(parsedActual) ? undefined : parsedActual;
   }
 
   // If the desired skill level is undefined, return true (no specific requirement)
-  if (requiredLevel === undefined || requiredLevel === 4) {
+  if (requiredLevel === undefined || requiredLevel === 3) {
     return true; // No desired skill level requirement
   }
 

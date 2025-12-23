@@ -258,19 +258,18 @@ const MatchPopup: React.FC<MatchPopupProps> = ({ israelUser, diasporaUser, onClo
 
   return (
     <div className="match-popup-container">
-      <div className="match-popup-grid">
-        
-        {/* Left Side - Israel User */}
-        <div className="match-popup-column">
-          <UserSection userData={israelUserData} title={`${israelUser.fullName} (Israel)`} />
-        </div>
+      
+      {/* Left Side - Israel User */}
+      <div className="match-popup-column">
+        <UserSection userData={israelUserData} title={`${israelUser.fullName} (Israel)`} />
+      </div>
 
-        {/* Middle - Compatibility Information */}
-        <div className="match-popup-column">
-          <div className="user-card-container match-popup-user-container">
-            
-            {/* Compatibility Checks */}
-            <div className="card-section match-popup-times-section">
+      {/* Middle - Compatibility Information */}
+      <div className="match-popup-column">
+        <div className="user-card-container match-popup-user-container">
+          
+          {/* Compatibility Checks */}
+          <div className="card-section match-popup-times-section">
               <div className="section-header match-popup-times-header">
                 <div className="section-icon"><Users size={18} /></div>
                 <h3 className="section-title match-popup-section-title">Compatibility Analysis</h3>
@@ -307,8 +306,8 @@ const MatchPopup: React.FC<MatchPopupProps> = ({ israelUser, diasporaUser, onClo
               </div>
             </div>
 
-            {/* Common Tracks */}
-            <div className="card-section match-popup-times-section">
+          {/* Common Tracks */}
+          <div className="card-section match-popup-times-section">
               <div className="section-header match-popup-times-header">
                 <div className="section-icon"><BookOpen size={18} /></div>
                 <h3 className="section-title match-popup-section-title">Common Tracks</h3>
@@ -327,8 +326,8 @@ const MatchPopup: React.FC<MatchPopupProps> = ({ israelUser, diasporaUser, onClo
               </div>
             </div>
 
-            {/* Overlapping Times */}
-            <div className="card-section match-popup-times-section">
+          {/* Overlapping Times */}
+          <div className="card-section match-popup-times-section">
               <div className="section-header match-popup-times-header">
                 <div className="section-icon"><Calendar size={18} /></div>
                 <h3 className="section-title match-popup-section-title">Overlapping Learning Times</h3>
@@ -376,17 +375,16 @@ const MatchPopup: React.FC<MatchPopupProps> = ({ israelUser, diasporaUser, onClo
                   </table>
                 </div>
               )}
-            </div>
-
           </div>
-        </div>
 
-        {/* Right Side - Diaspora User */}
-        <div className="match-popup-column">
-          <UserSection userData={diasporaUserData} title={`${diasporaUser.fullName} (Diaspora)`} />
         </div>
-
       </div>
+
+      {/* Right Side - Diaspora User */}
+      <div className="match-popup-column">
+        <UserSection userData={diasporaUserData} title={`${diasporaUser.fullName} (Diaspora)`} />
+      </div>
+
     </div>
   );
 };

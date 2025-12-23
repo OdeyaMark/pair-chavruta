@@ -43,6 +43,39 @@ export interface ChavrutaCardProps {
 export const EnglishLevels = ["Doesn't have to be perfect. I know some Hebrew", "Conversational level", "Excellent (I don't know any Hebrew whatsoever)", "not specified"];
 export const SkillLevels = ["Beginner", "Moderate", "Advanced", "not specified"];
 export const LearningStyles = ["Deep and Slow", "Progressed, flowing", "Text centered", "Philosophical, free talking, deriving from text into thought", "No significant or particular style"];
+
+const resolveIndexedValue = (options: string[], rawValue: any, defaultValue = 'not specified', debugLabel?: string): string => {
+  if (rawValue === null || rawValue === undefined || rawValue === '') {
+    if (debugLabel) {
+      console.log(`[formatter] ${debugLabel} missing value; defaulting to ${defaultValue}`);
+    }
+    return defaultValue;
+  }
+
+  const numericValue = typeof rawValue === 'string'
+    ? Number.parseInt(rawValue, 10)
+    : rawValue;
+
+  if (Number.isInteger(numericValue) && numericValue >= 0 && numericValue < options.length) {
+    if (debugLabel) {
+      console.log(`[formatter] ${debugLabel} numeric ${numericValue} -> ${options[numericValue]}`);
+    }
+    return options[numericValue];
+  }
+
+  if (typeof rawValue === 'string' && options.includes(rawValue)) {
+    if (debugLabel) {
+      console.log(`[formatter] ${debugLabel} direct match -> ${rawValue}`);
+    }
+    return rawValue;
+  }
+
+  if (debugLabel) {
+    console.log(`[formatter] ${debugLabel} unhandled value`, { rawValue, defaultValue });
+  }
+
+  return defaultValue;
+};
 // Helper functions
 const checkTimeSlot = (dayValue: any, slot: string) => {
   if (!dayValue || !Array.isArray(dayValue)) {
@@ -105,21 +138,21 @@ export async function formatUserData(rawUser: Record<string, any>): ChavrutaCard
 
   const chavrutaPreference: LabelValuePair[] = [
     { label: 'Gender Preference', value: rawUser.prefGender || 'No preference' },
-    { label: 'Learning Style', value: LearningStyles[rawUser.prefLearningStyle] || 'not specified' },
+    { label: 'Learning Style', value: resolveIndexedValue(LearningStyles, rawUser.prefLearningStyle, 'LearningStyle') },
     { label: 'More Than One Chavruta', value: formatField(rawUser.prefNumberOfMatches) },
     // Conditional learning skill based on country
     { 
       label: rawUser.country === 'Israel' ? 'Desired Learning Skill' : 'Learning Skill', 
       value: rawUser.country === 'Israel' 
-        ? (SkillLevels[rawUser.desiredSkillLevel] || 'not specified')
-        : (SkillLevels[rawUser.skillLevel] || 'not specified')
+        ? resolveIndexedValue(SkillLevels, rawUser.desiredSkillLevel, `DesiredSkill (${rawUser._id ?? 'unknown'})`)
+        : resolveIndexedValue(SkillLevels, rawUser.skillLevel, `Skill (${rawUser._id ?? 'unknown'})`)
     },
     // Conditional English level based on country
     { 
       label: rawUser.country === 'Israel' ? 'English Level' : 'Desired English Level', 
       value: rawUser.country === 'Israel' 
-        ? (EnglishLevels[rawUser.englishLevel] || 'not specified')
-        : (EnglishLevels[rawUser.desiredEnglishLevel] || 'not specified')
+        ? resolveIndexedValue(EnglishLevels, rawUser.englishLevel, `EnglishLevel (${rawUser._id ?? 'unknown'})`)
+        : resolveIndexedValue(EnglishLevels, rawUser.desiredEnglishLevel, `DesiredEnglish (${rawUser._id ?? 'unknown'})`)
     },
   ];
 
