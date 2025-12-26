@@ -17,6 +17,7 @@ interface User {
   learningStyle?: number;
   prefTracks?: number[];
   utcOffset: string | number;
+  dateOfRegistered?: string; // Add this line
   openQuestions?: {
     question: string;
     answer: string;

@@ -164,12 +164,27 @@ export async function formatUserData(rawUser: Record<string, any>): ChavrutaCard
     return String(currentYear - year);
   };
 
+  const formatRegistrationDate = (dateString: string | undefined): string => {
+    if (!dateString) return 'Not specified';
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric' 
+      });
+    } catch {
+      return 'Not specified';
+    }
+  };
+
   const extraDetails: LabelValuePair[] = [
      { label: 'Gender', value: rawUser.gender || 'Not specified' },
      { label: 'Age', value: calculateAge(rawUser.age) },
-        { label: 'Location', value: formatLocation() },
-    { label: 'Jewish Affiliation', value: formatField(rawUser.jewishAndComAff) },
-    { label: 'Profession', value: formatField(rawUser.profession) }
+     { label: 'Location', value: formatLocation() },
+     { label: 'Registration Date', value: formatRegistrationDate(rawUser.dateOfRegistered) }, // Add this line
+     { label: 'Jewish Affiliation', value: formatField(rawUser.jewishAndComAff) },
+     { label: 'Profession', value: formatField(rawUser.profession) }
   ];
 
   const languages: LabelValuePair[] = [
