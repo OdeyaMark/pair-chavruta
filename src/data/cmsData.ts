@@ -737,3 +737,43 @@ export const unarchiveUser = async (userId: string): Promise<void> => {
     throw error;
   }
 };
+
+/**
+ * Permanently deletes a user from the database
+ * WARNING: This action cannot be undone. Use with extreme caution.
+ * @param userId - The ID of the user to delete
+ * @returns Promise<void>
+ */
+export const deleteUser = async (userId: string): Promise<void> => {
+  try {
+    console.log('Permanently deleting user with ID:', userId);
+    
+    // First, check if user exists and get their data
+    const user = await getUserById(userId);
+    if (!user) {
+      throw new Error(`User with ID ${userId} not found`);
+    }
+    
+    // Check if user has active chavrutas before deleting
+    const userChavrutas = await items.query('Import5')
+      .hasSome('newFromIsraelId', [userId])
+      .or(items.query('Import5').hasSome('newFromWorldId', [userId]))
+      .ne('isDeleted', true)
+      .find();
+    
+    if (userChavrutas.items.length > 0) {
+      console.warn(`User ${userId} has ${userChavrutas.items.length} active chavrutas. Consider archiving instead.`);
+      // Optionally, you can throw an error here to prevent deletion
+      // throw new Error(`Cannot delete user with active chavrutas. Please archive instead.`);
+    }
+    
+    // Permanently remove the user from the database
+    await items.remove('Import3', userId);
+    
+    consola.success(`User ${user.fullName} (${userId}) permanently deleted from database`);
+    
+  } catch (error) {
+    consola.error('Error deleting user:', error);
+    throw error;
+  }
+};

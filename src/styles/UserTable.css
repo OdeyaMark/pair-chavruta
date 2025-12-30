@@ -283,3 +283,39 @@ td {
 .table-row {
   transition: background-color 0.2s ease;
 }
+
+/* Add to /home/odeya/projects/pair-chavrutas/src/styles/UserTable.css */
+
+.button-with-title.delete {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+  border-radius: 6px;
+  color: white;
+  font-weight: 600;
+  font-size: 13px;
+  box-shadow: 0 2px 4px rgba(220, 38, 38, 0.3);
+  transition: all 0.2s ease;
+}
+
+.button-with-title.delete:hover {
+  background: linear-gradient(135deg, #b91c1c 0%, #7f1d1d 100%);
+  box-shadow: 0 4px 8px rgba(220, 38, 38, 0.4);
+  transform: translateY(-1px);
+}
+
+.button-with-title.delete .icon-danger {
+  color: white;
+}
+
+.button-with-title.delete .button-title {
+  color: white;
+  font-weight: 600;
+}
+
+/* Keep archive button distinct with blue/gray styling */
+.icon-button:has(.icon) {
+  padding: 8px !important;
+}

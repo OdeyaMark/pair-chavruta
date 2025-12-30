@@ -49,10 +49,18 @@ export const IconButton: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement>>
   );
 };
 
+// Add this custom component before ICON_MAP (around line 35)
+const DeleteButton: React.FC = () => (
+  <div className="button-with-title delete">
+    <Trash2 size={18} className="icon-danger" />
+  </div>
+);
+
 // ICON_MAP follows...
 const ICON_MAP: Record<string, React.ComponentType<any>> = {
   edit: Pencil,
-  delete: Trash2,
+  // delete: Trash2,  // Remove or comment out this line
+  deleteIcon: Trash2,  // Keep this for other uses if needed
   details: Eye,
   settings: Settings,
   add: Plus,
@@ -62,6 +70,7 @@ const ICON_MAP: Record<string, React.ComponentType<any>> = {
   pair: Handshake,
   activate: ActivateButton,  // Add this line
   discard: DiscardButton,  // Add this line
+  delete: DeleteButton,  // Add this line to use the custom component
   // Add more mappings as needed
 };
 

@@ -2,7 +2,7 @@ import React, { useEffect, type FC, useState, useMemo, useCallback } from 'react
 import { Page, WixDesignSystemProvider, Box, Text, ToggleSwitch, Dropdown, FormField } from '@wix/design-system';
 import { GenericTable, TableColumn } from "../../../components/GenericTable";
 import '@wix/design-system/styles.global.css';
-import { fetchCMSData, fetchArchivedUsers, archiveUser } from '../../../data/cmsData';
+import { fetchCMSData, fetchArchivedUsers, archiveUser, deleteUser } from '../../../data/cmsData';
 import { dashboard } from '@wix/dashboard';
 import ContactPopup from '../../../components/contactPopup';
 
@@ -27,6 +27,7 @@ interface UserRow {
   edit: string;
   notes: string;
   archive: string;
+  delete: string;  // Add this line
   registrationDate: string;
   registrationYear: string;
 }
@@ -75,6 +76,7 @@ const DashboardPage: FC = () => {
         edit: "edit",
         notes: "",
         archive: "Archive",
+        delete: "Delete",  // Add this line
         registrationDate: new Date(item.dateOfRegistered).toLocaleDateString('en-US', {
           year: 'numeric',
           month: 'short',
@@ -203,6 +205,35 @@ const DashboardPage: FC = () => {
     }
   }, []);
 
+  const handleDeleteClick = useCallback(async (row: UserRow) => {
+    const confirmed = window.confirm(
+      `⚠️ WARNING: Are you sure you want to PERMANENTLY DELETE ${row.fullName}?\n\nThis action CANNOT be undone. All user data will be lost forever`
+    );
+    
+    if (!confirmed) return;
+    
+
+    try {
+      console.log("Permanently deleting user:", row.id);
+      // TODO: Implement actual delete API call here
+      await deleteUser(row.id);
+      
+      // Refresh data after deletion
+      await fetchInitialData();
+      
+      dashboard.showToast({
+        message: 'User permanently deleted.',
+        type: 'success'
+      });
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      dashboard.showToast({
+        message: 'Error deleting user. Please try again.',
+        type: 'error'
+      });
+    }
+  }, []);
+
   // Define columns with row-based onClick handlers
   const columns: TableColumn[] = useMemo(() => [
     { 
@@ -234,7 +265,12 @@ const DashboardPage: FC = () => {
       label: "Archive",
       onClick: (row: UserRow) => handleArchiveClick(row)
     },
-  ], [handleDetailsClick, handleContactClick, handleEditClick, handleNotesClick, handleArchiveClick]);
+    { 
+      key: "delete", 
+      label: "Delete",
+      onClick: (row: UserRow) => handleDeleteClick(row)
+    },
+  ], [handleDetailsClick, handleContactClick, handleEditClick, handleNotesClick, handleArchiveClick, handleDeleteClick]);
 
   const handleAddUser = () => {
     // TODO: Implement add user logic (modal, form, etc.)
