@@ -2,7 +2,7 @@ import React, { useEffect, type FC, useState, useMemo, useCallback } from 'react
 import { Page, WixDesignSystemProvider, Box, Text, ToggleSwitch, Dropdown, FormField } from '@wix/design-system';
 import { GenericTable, TableColumn } from "../../../components/GenericTable";
 import '@wix/design-system/styles.global.css';
-import { fetchCMSData, fetchArchivedUsers, archiveUser, deleteUser } from '../../../data/cmsData';
+import { fetchCMSData, fetchArchivedUsers, archiveUser, unarchiveUser, deleteUser } from '../../../data/cmsData';
 import { dashboard } from '@wix/dashboard';
 import ContactPopup from '../../../components/contactPopup';
 
@@ -75,7 +75,7 @@ const DashboardPage: FC = () => {
         contactDetails: "",
         edit: "edit",
         notes: "",
-        archive: "Archive",
+        archive: showArchived ? "↑ Unarchive" : "↓ Archive",
         delete: "Delete",  // Add this line
         registrationDate: new Date(item.dateOfRegistered).toLocaleDateString('en-US', {
           year: 'numeric',
@@ -178,32 +178,37 @@ const DashboardPage: FC = () => {
   }, []);
 
   const handleArchiveClick = useCallback(async (row: UserRow) => {
+    const isUnarchiving = showArchived;
+    const action = isUnarchiving ? 'unarchive' : 'archive';
     const confirmed = window.confirm(
-      `Are you sure you want to archive ${row.fullName}?`
+      `Are you sure you want to ${action} ${row.fullName}?`
     );
     
     if (!confirmed) return;
 
     try {
-      // Implement archive logic here
-      console.log("Archiving user:", row.id);
-      await archiveUser(row.id);
+      console.log(`${action}ing user:`, row.id);
+      if (isUnarchiving) {
+        await unarchiveUser(row.id);
+      } else {
+        await archiveUser(row.id);
+      }
       
-      // Refresh data after archiving
+      // Refresh data after archiving/unarchiving
       await fetchInitialData();
       
       dashboard.showToast({
-        message: 'User archived successfully.',
+        message: `User ${action}d successfully.`,
         type: 'success'
       });
     } catch (error) {
-      console.error('Error archiving user:', error);
+      console.error(`Error ${action}ing user:`, error);
       dashboard.showToast({
-        message: 'Error archiving user. Please try again.',
+        message: `Error ${action}ing user. Please try again.`,
         type: 'error'
       });
     }
-  }, []);
+  }, [showArchived]);
 
   const handleDeleteClick = useCallback(async (row: UserRow) => {
     const confirmed = window.confirm(
@@ -262,7 +267,7 @@ const DashboardPage: FC = () => {
     },
     { 
       key: "archive", 
-      label: "Archive",
+      label: showArchived ? "Unarchive" : "Archive",
       onClick: (row: UserRow) => handleArchiveClick(row)
     },
     { 
@@ -270,7 +275,7 @@ const DashboardPage: FC = () => {
       label: "Delete",
       onClick: (row: UserRow) => handleDeleteClick(row)
     },
-  ], [handleDetailsClick, handleContactClick, handleEditClick, handleNotesClick, handleArchiveClick, handleDeleteClick]);
+  ], [handleDetailsClick, handleContactClick, handleEditClick, handleNotesClick, handleArchiveClick, handleDeleteClick, showArchived]);
 
   const handleAddUser = () => {
     // TODO: Implement add user logic (modal, form, etc.)

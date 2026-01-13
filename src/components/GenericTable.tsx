@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Pencil, Trash2, Eye, Settings, Plus, X, Check, Contact2, Archive, StickyNote, Handshake} from "lucide-react";
+import { Pencil, Trash2, Eye, Settings, Plus, X, Check, Contact2, Archive, ArchiveRestore, StickyNote, Handshake} from "lucide-react";
 import debounce from 'lodash/debounce';
 import '../styles/UserTable.css';
 
@@ -255,6 +255,24 @@ export const GenericTable: React.FC<GenericTableProps> = ({
 
     if (column?.render) {
       return column.render(row);
+    }
+
+    // Special handling for archive column to show different icons
+    if (columnKey === "archive") {
+      const isUnarchive = typeof value === 'string' && value.includes('Unarchive');
+      const IconComponent = isUnarchive ? ArchiveRestore : Archive;
+      return (
+        <IconButton onClick={(e) => {
+          e.stopPropagation();
+          if (column?.onClick) {
+            column.onClick(row);
+            return;
+          }
+          if (onRowClick) onRowClick(row);
+        }}>
+          <IconComponent size={18} className="icon" />
+        </IconButton>
+      );
     }
 
     if (ICON_MAP[columnKey]) {
