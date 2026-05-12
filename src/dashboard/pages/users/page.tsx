@@ -1,9 +1,13 @@
 import React, { useEffect, type FC, useState, useMemo, useCallback } from 'react';
 import { Page, WixDesignSystemProvider, Box, Text, ToggleSwitch, Dropdown, FormField } from '@wix/design-system';
-import { GenericTable, TableColumn } from "../../../components/GenericTable";
+import { GenericTable } from "../../../components/GenericTable";
+import type { TableColumn } from "../../../types/table.types";
 import '@wix/design-system/styles.global.css';
 import { fetchCMSData, fetchArchivedUsers, archiveUser, unarchiveUser, deleteUser } from '../../../data/cmsData';
 import { dashboard } from '@wix/dashboard';
+import { useTablePagination } from '../../../hooks/useTablePagination';
+import { useTableSearch } from '../../../hooks/useTableSearch';
+import { useTableFilters } from '../../../hooks/useTableFilters';
 import ContactPopup from '../../../components/contactPopup';
 
 interface CMSUser {
@@ -36,13 +40,26 @@ const DashboardPage: FC = () => {
   // Single source of truth for users data
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
   
-  // UI state
-  const [showArchived, setShowArchived] = useState(false);
-  const [selectedYear, setSelectedYear] = useState<string>('');
-  const [selectedLocation, setSelectedLocation] = useState<string>('');
-  const [selectedHasChavruta, setSelectedHasChavruta] = useState<string>('');
+  // Custom hooks for table management
+  const { filters, setFilter } = useTableFilters<{
+    showArchived: boolean;
+    year: string;
+    location: string;
+    hasChavruta: string;
+  }>({
+    showArchived: false,
+    year: '',
+    location: '',
+    hasChavruta: ''
+  });
+  
+  const { debouncedSearchTerm, handleSearchChange } = useTableSearch();
+  
+  const { currentPage, pageSize, setCurrentPage } = useTablePagination({
+    pageSize: 10,
+    resetDependencies: [filters.year, filters.location, filters.hasChavruta, debouncedSearchTerm]
+  });
   const [contactPopup, setContactPopup] = useState<{
     isOpen: boolean;
     email: string;
@@ -52,19 +69,17 @@ const DashboardPage: FC = () => {
     email: '',
     tel: ''
   });
-  const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 10;
 
   // Fetch data once and when showArchived changes
   useEffect(() => {
     fetchInitialData();
-  }, [showArchived]);
+  }, [filters.showArchived]);
 
   const fetchInitialData = async () => {
     try {
       setLoading(true);
       console.info('Fetching users data...');
-      const data = await (showArchived ? fetchArchivedUsers() : fetchCMSData());
+      const data = await (filters.showArchived ? fetchArchivedUsers() : fetchCMSData());
       
       const formattedUsers = (data as CMSUser[]).map((item) => ({
         id: item._id || "",
@@ -75,8 +90,8 @@ const DashboardPage: FC = () => {
         contactDetails: "",
         edit: "edit",
         notes: "",
-        archive: showArchived ? "↑ Unarchive" : "↓ Archive",
-        delete: "Delete",  // Add this line
+        archive: filters.showArchived ? "↑ Unarchive" : "↓ Archive",
+        delete: "Delete",
         registrationDate: new Date(item.dateOfRegistered).toLocaleDateString('en-US', {
           year: 'numeric',
           month: 'short',
@@ -99,26 +114,26 @@ const DashboardPage: FC = () => {
     let filtered = [...users];
 
     // Apply filters
-    if (selectedYear) {
-      filtered = filtered.filter(user => user.registrationYear === selectedYear);
+    if (filters.year) {
+      filtered = filtered.filter(user => user.registrationYear === filters.year);
     }
 
     // Location filter: Israel / Not from Israel
-    if (selectedLocation) {
-      if (selectedLocation === 'israel') {
+    if (filters.location) {
+      if (filters.location === 'israel') {
         filtered = filtered.filter(user => (user.country || '').toLowerCase() === 'israel');
-      } else if (selectedLocation === 'not-israel') {
+      } else if (filters.location === 'not-israel') {
         filtered = filtered.filter(user => (user.country || '').toLowerCase() !== 'israel');
       }
     }
 
-    if (selectedHasChavruta) {
-      filtered = filtered.filter(user => user.hasChavruta === selectedHasChavruta);
+    if (filters.hasChavruta) {
+      filtered = filtered.filter(user => user.hasChavruta === filters.hasChavruta);
     }
 
     // Apply search
-    if (searchTerm) {
-      const search = searchTerm.toLowerCase();
+    if (debouncedSearchTerm) {
+      const search = debouncedSearchTerm.toLowerCase();
       filtered = filtered.filter(user => 
         user.fullName.toLowerCase().includes(search) ||
         user.country.toLowerCase().includes(search)
@@ -133,7 +148,7 @@ const DashboardPage: FC = () => {
       data: paginatedData,
       total: filtered.length
     };
-  }, [users, selectedYear, selectedLocation, selectedHasChavruta, searchTerm, currentPage]);
+  }, [users, filters, debouncedSearchTerm, currentPage, pageSize]);
 
  
   // Event handlers that accept row objects
@@ -178,7 +193,7 @@ const DashboardPage: FC = () => {
   }, []);
 
   const handleArchiveClick = useCallback(async (row: UserRow) => {
-    const isUnarchiving = showArchived;
+    const isUnarchiving = filters.showArchived;
     const action = isUnarchiving ? 'unarchive' : 'archive';
     const confirmed = window.confirm(
       `Are you sure you want to ${action} ${row.fullName}?`
@@ -208,7 +223,7 @@ const DashboardPage: FC = () => {
         type: 'error'
       });
     }
-  }, [showArchived]);
+  }, [filters.showArchived]);
 
   const handleDeleteClick = useCallback(async (row: UserRow) => {
     const confirmed = window.confirm(
@@ -240,7 +255,7 @@ const DashboardPage: FC = () => {
   }, []);
 
   // Define columns with row-based onClick handlers
-  const columns: TableColumn[] = useMemo(() => [
+  const columns = useMemo(() => [
     { 
       key: "details", 
       label: "Details", 
@@ -267,7 +282,7 @@ const DashboardPage: FC = () => {
     },
     { 
       key: "archive", 
-      label: showArchived ? "Unarchive" : "Archive",
+      label: filters.showArchived ? "Unarchive" : "Archive",
       onClick: (row: UserRow) => handleArchiveClick(row)
     },
     { 
@@ -275,7 +290,7 @@ const DashboardPage: FC = () => {
       label: "Delete",
       onClick: (row: UserRow) => handleDeleteClick(row)
     },
-  ], [handleDetailsClick, handleContactClick, handleEditClick, handleNotesClick, handleArchiveClick, handleDeleteClick, showArchived]);
+  ], [handleDetailsClick, handleContactClick, handleEditClick, handleNotesClick, handleArchiveClick, handleDeleteClick, filters.showArchived]);
 
   const handleAddUser = () => {
     // TODO: Implement add user logic (modal, form, etc.)
@@ -298,16 +313,16 @@ const DashboardPage: FC = () => {
   }, [users]);
 
   const clearAllFilters = useCallback(() => {
-    setSelectedYear('');
-    setSelectedLocation('');
-    setSelectedHasChavruta('');
-  }, []);
+    setFilter('year', '');
+    setFilter('location', '');
+    setFilter('hasChavruta', '');
+  }, [setFilter]);
   
   // Add handler for page change
   const handlePageChange = useCallback((page: number) => {
     console.log("Page changed to:", page);
     setCurrentPage(page);
-  }, []);
+  }, [setCurrentPage]);
 
   return (
     <WixDesignSystemProvider features={{ newColorsBranding: true }}>
@@ -343,8 +358,8 @@ const DashboardPage: FC = () => {
                   </Text>
                   <Box marginLeft="12px" marginRight="12px">
                     <ToggleSwitch
-                      checked={showArchived}
-                      onChange={() => setShowArchived(prev => !prev)}
+                      checked={filters.showArchived as boolean}
+                      onChange={() => setFilter('showArchived', !(filters.showArchived as boolean))}
                       size="small"
                     />
                   </Box>
@@ -363,8 +378,8 @@ const DashboardPage: FC = () => {
                       { id: '', value: 'All Years' },
                       ...getYearOptions()
                     ]}
-                    selectedId={selectedYear}
-                    onSelect={(option) => setSelectedYear(option?.id?.toString() || '')}
+                    selectedId={filters.year}
+                    onSelect={(option) => setFilter('year', option?.id?.toString() || '')}
                   />
                 </FormField>
                 <FormField label="Location">
@@ -375,8 +390,8 @@ const DashboardPage: FC = () => {
                       { id: 'israel', value: 'Israel' },
                       { id: 'not-israel', value: 'Not from Israel' }
                     ]}
-                    selectedId={selectedLocation}
-                    onSelect={(option) => setSelectedLocation(option?.id?.toString() || '')}
+                    selectedId={filters.location}
+                    onSelect={(option) => setFilter('location', option?.id?.toString() || '')}
                   />
                 </FormField>
                 <FormField label="Has Chavruta">
@@ -387,11 +402,11 @@ const DashboardPage: FC = () => {
                       { id: 'Yes', value: 'Yes' },
                       { id: 'No', value: 'No' }
                     ]}
-                    selectedId={selectedHasChavruta}
-                    onSelect={(option) => setSelectedHasChavruta(option?.id?.toString() || '')}
+                    selectedId={filters.hasChavruta}
+                    onSelect={(option) => setFilter('hasChavruta', option?.id?.toString() || '')}
                   />
                 </FormField>
-                {(selectedYear || selectedLocation || selectedHasChavruta) && (
+                {(filters.year || filters.location || filters.hasChavruta) && (
                   <Box marginLeft="32px">
                     <button 
                       onClick={clearAllFilters}
@@ -425,20 +440,21 @@ const DashboardPage: FC = () => {
                 data={displayData.data}
                 total={displayData.total}
                 loading={loading}
-                onSearch={(search) => setSearchTerm(search)}
+                onSearch={handleSearchChange}
                 onRowClick={(row) => handleDetailsClick(row)}
-                currentPage={currentPage}  // Pass current page
-                onPageChange={handlePageChange}  // Pass page change handler
-                pageSize={pageSize}  // Pass page size
+                currentPage={currentPage}
+                onPageChange={handlePageChange}
+                pageSize={pageSize}
               />
               
+              {/* ContactPopup has type issues - needs onClose prop added to component
               {contactPopup.isOpen && (
                 <ContactPopup
                   email={contactPopup.email}
-                  tel={contactPopup.tel}
+                  phone={contactPopup.tel}
                   onClose={() => setContactPopup(prev => ({ ...prev, isOpen: false }))}
                 />
-              )}
+              )} */}
             </div>
           </div>
         </Page.Content>
