@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 
 type FilterValue = string | boolean | number | null;
 
@@ -32,6 +32,7 @@ export const useTableFilters = <T extends Record<string, FilterValue>>(
   initialFilters: T
 ): UseTableFiltersReturn<T> => {
   const [filters, setFilters] = useState<T>(initialFilters);
+  const initialFiltersRef = useRef<T>(initialFilters);
 
   const setFilter = useCallback(<K extends keyof T>(key: K, value: T[K]) => {
     setFilters(prev => ({
@@ -41,15 +42,15 @@ export const useTableFilters = <T extends Record<string, FilterValue>>(
   }, []);
 
   const resetFilters = useCallback(() => {
-    setFilters(initialFilters);
-  }, [initialFilters]);
+    setFilters(initialFiltersRef.current);
+  }, []);
 
   const resetFilter = useCallback(<K extends keyof T>(key: K) => {
     setFilters(prev => ({
       ...prev,
-      [key]: initialFilters[key]
+      [key]: initialFiltersRef.current[key]
     }));
-  }, [initialFilters]);
+  }, []);
 
   return {
     filters,

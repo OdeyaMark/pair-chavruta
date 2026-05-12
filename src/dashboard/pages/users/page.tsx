@@ -1,7 +1,6 @@
 import React, { useEffect, type FC, useState, useMemo, useCallback } from 'react';
 import { Page, WixDesignSystemProvider, Box, Text, ToggleSwitch, Dropdown, FormField } from '@wix/design-system';
 import { GenericTable } from "../../../components/GenericTable";
-import type { TableColumn } from "../../../types/table.types";
 import '@wix/design-system/styles.global.css';
 import { fetchCMSData, fetchArchivedUsers, archiveUser, unarchiveUser, deleteUser } from '../../../data/cmsData';
 import { dashboard } from '@wix/dashboard';
@@ -58,7 +57,7 @@ const DashboardPage: FC = () => {
   
   const { currentPage, pageSize, setCurrentPage } = useTablePagination({
     pageSize: 10,
-    resetDependencies: [filters.year, filters.location, filters.hasChavruta, debouncedSearchTerm]
+    resetDependencies: [filters.showArchived, filters.year, filters.location, filters.hasChavruta, debouncedSearchTerm]
   });
   const [contactPopup, setContactPopup] = useState<{
     isOpen: boolean;

@@ -3,7 +3,7 @@ import React from 'react';
 export interface TableColumn {
   key: string;
   label: string;
-  onClick?: (rowOrId: any) => void;
+  onClick?: (row: any) => void;
   render?: (row: any) => React.ReactNode;
   editable?: {
     options: Array<{ value: string; label: string }>;

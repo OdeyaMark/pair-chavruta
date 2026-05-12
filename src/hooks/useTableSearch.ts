@@ -53,12 +53,13 @@ export const useTableSearch = (
   }, [debouncedUpdate]);
 
   const clearSearch = useCallback(() => {
+    debouncedUpdate.cancel();
     setSearchTerm('');
     setDebouncedSearchTerm('');
     if (onSearchChange) {
       onSearchChange('');
     }
-  }, [onSearchChange]);
+  }, [debouncedUpdate, onSearchChange]);
 
   // Cleanup debounce on unmount
   useEffect(() => {

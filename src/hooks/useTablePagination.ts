@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, DependencyList } from 'react';
 
 interface UseTablePaginationOptions {
   pageSize?: number;
-  resetDependencies?: any[];
+  resetDependencies?: DependencyList;
 }
 
 interface UseTablePaginationReturn {

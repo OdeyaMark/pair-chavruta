@@ -1,6 +1,5 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { Pencil, Trash2, Eye, Settings, Plus, X, Check, Contact2, Archive, ArchiveRestore, StickyNote, Handshake} from "lucide-react";
-import debounce from 'lodash/debounce';
 import { IconButton } from './table/IconButton';
 import { ActivateButton, DiscardButton, DeleteButton } from './table/TableButtons';
 import { EditableCell, DropdownState } from './table/EditableCell';
@@ -47,19 +46,14 @@ export const GenericTable: React.FC<GenericTableProps> = ({
     columnKey: null
   });
 
-  const debouncedSearch = useCallback(
-    debounce((value: string) => {
-      setSearch(value);
-      // Reset to page 1 on search
-      if (onPageChange) {
-        onPageChange(1);
-      }
-      if (onSearch) {
-        onSearch(value);
-      }
-    }, 300),
-    [onSearch, onPageChange]
-  );
+  // Handle search change - pass directly to parent without debouncing
+  // (parent hooks like useTableSearch handle debouncing)
+  const handleSearchChange = (value: string) => {
+    setSearch(value);
+    if (onSearch) {
+      onSearch(value);
+    }
+  };
 
   // Handle pagination changes
   const handlePageChange = (newPage: number) => {
@@ -172,7 +166,7 @@ export const GenericTable: React.FC<GenericTableProps> = ({
           type="text"
           placeholder="Search..."
           value={search}
-          onChange={e => debouncedSearch(e.target.value)}
+          onChange={e => handleSearchChange(e.target.value)}
           className="search-input"
         />
         <span className="results-count">
@@ -201,9 +195,9 @@ export const GenericTable: React.FC<GenericTableProps> = ({
                   <td
                     key={col.key}
                     onClick={(e) => {
-                      if (col.onClick && row?.id) {
+                      if (col.onClick && row) {
                         e.stopPropagation();
-                        col.onClick(row.id);
+                        col.onClick(row);
                       }
                     }}
                     className={col.onClick ? 'clickable' : ''}
