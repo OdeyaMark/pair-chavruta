@@ -63,22 +63,6 @@ const DashboardPage: FC = () => {
     fetchInitialData();
   }, []);
 
-  // Add logging wrapper for setActiveChavrutas
-  const setActiveChavrutasWithLogging = (newValue: any) => {
-    logger.debug('=== SETTING ACTIVE CHAVRUTAS ===');
-    logger.debug('New value:', newValue);
-    logger.debug('Stack trace:', new Error().stack);
-    setActiveChavrutas(newValue);
-  };
-
-  // Add logging wrapper for setArchivedChavrutas  
-  const setArchivedChavrutasWithLogging = (newValue: any) => {
-    logger.debug('=== SETTING ARCHIVED CHAVRUTAS ===');
-    logger.debug('New value:', newValue);
-    logger.debug('Stack trace:', new Error().stack);
-    setArchivedChavrutas(newValue);
-  };
-
   // Update fetchInitialData to use the stored data
   const fetchInitialData = async () => {
     try {
@@ -128,8 +112,8 @@ const DashboardPage: FC = () => {
       logger.debug('Setting active chavrutas:', active.length);
       logger.debug('Setting archived chavrutas:', archived.length);
       
-      setActiveChavrutasWithLogging(active);
-      setArchivedChavrutasWithLogging(archived);
+      setActiveChavrutas(active);
+      setArchivedChavrutas(archived);
       setLoading(false);
     } catch (error) {
       logger.error('Error fetching initial data:', error);

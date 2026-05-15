@@ -9,6 +9,7 @@ import {
 import '@wix/design-system/styles.global.css';
 import { width, height, title } from './modal.json';
 import { createLogger } from '../../../utils/logger';
+import { archiveUser, getUserById } from '../../../data/cmsData';
 
 const logger = createLogger('to-archive-modal');
 
@@ -19,6 +20,7 @@ interface ModalParams {
 
 const Modal: FC = () => {
   const [userId, setUserId] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
 
   // Effect for initializing userId from dashboard state
@@ -26,6 +28,8 @@ const Modal: FC = () => {
     const observerResult = dashboard.observeState((params: ModalParams) => {
       if (params?.userId) {
         setUserId(params.userId);
+      } else {
+        setIsLoading(false);
       }
     });
 
@@ -35,21 +39,53 @@ const Modal: FC = () => {
   // Effect for fetching user data
   React.useEffect(() => {
     let isSubscribed = true;
-    if (userId)
-      return () => {
-        isSubscribed = false;
-      };
-     
+
+    const fetchUser = async () => {
+      if (!userId) {
+        setIsLoading(false);
+        return;
+      }
+
+      setIsLoading(true);
+      try {
+        const user = await getUserById(userId);
+        if (!isSubscribed) return;
+
+        setUserName(user?.fullName || 'this user');
+      } catch (error) {
+        logger.error('Error fetching user for archive modal:', error);
+        if (!isSubscribed) return;
+        setUserName('this user');
+      } finally {
+        if (isSubscribed) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchUser();
+
+    return () => {
+      isSubscribed = false;
+    };
   }, [userId]);
 
   const handleArchive = async () => {
     if (userId) {
       try {
-        // TODO: Implement archive functionality
         logger.debug('Archiving user:', userId);
+        await archiveUser(userId);
+        dashboard.showToast({
+          message: 'User archived successfully.',
+          type: 'success'
+        });
         dashboard.closeModal();
       } catch (error) {
         logger.error('Error archiving user:', error);
+        dashboard.showToast({
+          message: 'Error archiving user. Please try again.',
+          type: 'error'
+        });
       }
     }
   };
@@ -72,7 +108,7 @@ const Modal: FC = () => {
           ) : userId? (
             <Box direction="vertical" align="center">
               <Text>
-                Are you sure you want to move the user to archive?
+                Are you sure you want to move {userName} to archive?
               </Text>
             </Box>
           ) : (

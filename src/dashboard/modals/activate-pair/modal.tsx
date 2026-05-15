@@ -8,7 +8,7 @@ import {
 } from '@wix/design-system';
 import '@wix/design-system/styles.global.css';
 import { width, height, title } from './modal.json';
-import { activatePairInDatabase, createNewPairInDatabase, sendPairingEmail, updateChavrutaStatus } from '../../../data/cmsData';
+import { activatePairInDatabase, sendPairingEmail } from '../../../data/cmsData';
 import { createLogger } from '../../../utils/logger';
 
 const logger = createLogger('activate-pair-modal');
@@ -21,7 +21,7 @@ interface ModalParams {
   targetUserName: string;
   trackId: string;
   trackName?: string;
-  isNewPair?: boolean;
+  onActivated?: () => Promise<void> | void;
 }
 
 const Modal: FC = () => {
@@ -66,6 +66,8 @@ const Modal: FC = () => {
         message: `Pair activated between ${params.sourceUserName} and ${params.targetUserName}. Email sent!`,
         type: 'success'
       });
+
+      await params.onActivated?.();
       
       dashboard.closeModal();
     } catch (error) {
@@ -92,6 +94,8 @@ const Modal: FC = () => {
         message: `Pair activated between ${params.sourceUserName} and ${params.targetUserName}`,
         type: 'success'
       });
+
+      await params.onActivated?.();
       
       dashboard.closeModal();
     } catch (error) {
