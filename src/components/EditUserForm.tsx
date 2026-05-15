@@ -12,6 +12,9 @@ import {
   LearningStyles
 } from '../data/formatters';
 import './UserCard.css';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('EditUserForm');
 
 interface EditUserFormProps {
   user: Record<string, any>;
@@ -51,14 +54,14 @@ interface FormData {
 
 const EditUserForm: React.FC<EditUserFormProps> = ({ user, onChange }) => {
   // Add debugging to see what's happening
-  console.log("Raw user data in EditUserForm:", user);
-  console.log("User gender:", user.gender);
-  console.log("User prefGender:", user.prefGender);
+  logger.debug("Raw user data in EditUserForm:", user);
+  logger.debug("User gender:", user.gender);
+  logger.debug("User prefGender:", user.prefGender);
 
   // Use the helper function to initialize form data
   const [formData, setFormData] = useState(() => {
     const initialData = initializeFormData(user);
-    console.log("Initial form data:", initialData);
+    logger.debug("Initial form data:", initialData);
     
     // Add server format for each day
     const serverTimeData = convertLearningTimesToServerFormat(initialData.learningTimes);
@@ -67,7 +70,7 @@ const EditUserForm: React.FC<EditUserFormProps> = ({ user, onChange }) => {
     const genderValue = Array.isArray(user.gender) ? user.gender[0] || '' : (user.gender || '');
     const prefGenderValue = Array.isArray(user.prefGender) ? user.prefGender[0] || '' : (user.prefGender || '');
     
-    console.log("Direct gender handling:", { genderValue, prefGenderValue });
+    logger.debug("Direct gender handling:", { genderValue, prefGenderValue });
     
     return {
       ...initialData,
@@ -79,9 +82,9 @@ const EditUserForm: React.FC<EditUserFormProps> = ({ user, onChange }) => {
   });
 
   // Add debugging to see current form state
-  console.log("Current formData:", formData);
-  console.log("Current formData.gender:", formData.gender);
-  console.log("Current formData.prefGender:", formData.prefGender);
+  logger.debug("Current formData:", formData);
+  logger.debug("Current formData.gender:", formData.gender);
+  logger.debug("Current formData.prefGender:", formData.prefGender);
 
   const [showTrackSelector, setShowTrackSelector] = useState(false);
 

@@ -9,6 +9,9 @@ import '../../../styles/matches.css';
 import { checkUserCompatibilityDebug, calculateMatchPercentage } from '../../../data/matchLogic';
 import { MODAL_IDS } from '../../../constants/modals';
 import { useTablePagination } from '../../../hooks/useTablePagination';
+import { createLogger } from '../../../utils/logger';
+
+const logger = createLogger('matches-page');
 
 
 interface User {
@@ -83,7 +86,7 @@ const DashboardPage: FC = () => {
   const fetchInitialData = async () => {
     try {
       setLoading(true);
-      console.log('Fetching initial data...');
+      logger.debug('Fetching initial data...');
       const [userData, tracksData] = await Promise.all([
         fetchMatchData(),
         getTracks()
@@ -116,9 +119,9 @@ const DashboardPage: FC = () => {
 
       setAllUsers(formattedUsers);
       setLoading(false);
-      console.log('Users loaded:', formattedUsers.length, 'items');
+      logger.debug('Users loaded:', formattedUsers.length, 'items');
     } catch (error) {
-      console.error('Error fetching initial data:', error);
+      logger.error('Error fetching initial data:', error);
       setLoading(false);
     }
   };
@@ -176,12 +179,12 @@ const DashboardPage: FC = () => {
 
   // Pagination handlers - separate for each table
   const handleUsersPageChange = useCallback((page: number) => {
-    console.log("Users page changed to:", page);
+    logger.debug("Users page changed to:", page);
     setUsersCurrentPage(page);
   }, []);
 
   const handleMatchesPageChange = useCallback((page: number) => {
-    console.log("Matches page changed to:", page);
+    logger.debug("Matches page changed to:", page);
     setMatchesCurrentPage(page);
   }, []);
 
@@ -294,8 +297,8 @@ const DashboardPage: FC = () => {
       });
     }
 
-    console.log("All potential matches:", allMatches.length);
-    console.log("Compatible matches:", allMatches.filter(m => m.isCompatible).length);
+    logger.debug("All potential matches:", allMatches.length);
+    logger.debug("Compatible matches:", allMatches.filter(m => m.isCompatible).length);
     
     // Clear track selections and editable rows when selecting a new user
     setTrackSelection({});
@@ -308,17 +311,17 @@ const DashboardPage: FC = () => {
 
   const handlePairWithTrack = useCallback(async (matchId: string, trackName: string, trackId: string) => {
     if (!selectedUser) {
-      console.error('No user selected for pairing');
+      logger.error('No user selected for pairing');
       return;
     }
 
     const targetUser = potentialMatches.find(user => user.id === matchId);
     if (!targetUser) {
-      console.error('Target user not found');
+      logger.error('Target user not found');
       return;
     }
 
-    console.log("Selected user:", selectedUser.country, "Target user:", targetUser.country);
+    logger.debug("Selected user:", selectedUser.country, "Target user:", targetUser.country);
     
     // Determine who is Israeli and who is not based on country
     const isSelectedUserIsraeli = selectedUser.country?.toLowerCase() === 'israel';
@@ -348,7 +351,7 @@ const DashboardPage: FC = () => {
       targetUserName = targetUser.fullName;
     }
 
-    console.log(`Creating pair: ${sourceUserName} and ${targetUserName} for track: ${trackName} (ID: ${trackId})`);
+    logger.debug(`Creating pair: ${sourceUserName} and ${targetUserName} for track: ${trackName} (ID: ${trackId})`);
     
     try {
       await createNewPairInDatabase(sourceUserId, targetUserId, trackId);
@@ -374,7 +377,7 @@ const DashboardPage: FC = () => {
         type: 'success'
       });
     } catch (error) {
-      console.error('Error creating pair:', error);
+      logger.error('Error creating pair:', error);
       dashboard.showToast({
         message: 'Error creating pair. Please try again.',
         type: 'error'
@@ -385,7 +388,7 @@ const DashboardPage: FC = () => {
   const handlePairClick = useCallback((row: User) => {
     const targetUser = potentialMatches.find(user => user.id === row.id);
     if (!targetUser) {
-      console.log('Target user not found');
+      logger.debug('Target user not found');
       return;
     }
     
@@ -399,7 +402,7 @@ const DashboardPage: FC = () => {
       handlePairWithTrack(row.id, selectedTrack, trackId);
     } else {
       // No common tracks or multiple tracks - make the track column editable
-      console.log('Making row editable for track selection');
+      logger.debug('Making row editable for track selection');
       
       if (allTracks.length === 0) {
         dashboard.showToast({
@@ -479,7 +482,7 @@ const DashboardPage: FC = () => {
           options: options,
           onSelect: (rowId: string, value: string) => {
             if (!value || value === '') {
-              console.log('Empty value selected, ignoring');
+              logger.debug('Empty value selected, ignoring');
               return;
             }
             
@@ -489,7 +492,7 @@ const DashboardPage: FC = () => {
 
             const targetUser = potentialMatches.find(user => user.id === rowId);
             if (!targetUser) {
-              console.log('Target user not found');
+              logger.debug('Target user not found');
               return;
             }
 

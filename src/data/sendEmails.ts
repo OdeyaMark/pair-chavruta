@@ -2,6 +2,9 @@ import {  createClient } from "@wix/sdk";
 import { functions } from "@wix/http-functions";
 
 import { dashboard } from "@wix/dashboard";
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('sendEmails');
 
 export async function sendWixEmail(contactDetails: { fName: string, lName: string, email: string, phone: string }, emailId: string, variables: any) {
     const client = createClient({
@@ -25,11 +28,11 @@ export async function sendWixEmail(contactDetails: { fName: string, lName: strin
     headers: { "Content-Type": "application/json" },
 });
     const data = await response.json();
-    console.log("Email sent successfully:", data);
+    logger.debug("Email sent successfully:", data);
     // Handle member data.
   } catch (error) {
     // Handle error.
-    console.error("Error sending email:", error);
+    logger.error("Error sending email:", error);
   }
 }
 

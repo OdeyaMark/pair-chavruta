@@ -6,6 +6,9 @@ import { fetchPendingChavrutasFromCMS, deleteChavrutaAndUpdateUsers } from '../.
 import { PreferredTracksInfo } from '../../../constants/tracks';
 import { dashboard } from '@wix/dashboard';
 import { MODAL_IDS } from '../../../constants/modals';
+import { createLogger } from '../../../utils/logger';
+
+const logger = createLogger('pending-matches-page');
 
 // Interface for the pending match data
 interface PendingMatch {
@@ -35,7 +38,7 @@ const DashboardPage: FC = () => {
   const fetchInitialData = async () => {
     try {
       setLoading(true);
-      console.log('Fetching pending matches data...');
+      logger.debug('Fetching pending matches data...');
       const chavrutas = await fetchPendingChavrutasFromCMS();
       
       const formattedMatches = chavrutas.map(chavruta => {
@@ -56,16 +59,16 @@ const DashboardPage: FC = () => {
 
       setPendingMatches(formattedMatches);
       setLoading(false);
-      console.log('Pending matches loaded:', formattedMatches.length, 'items');
+      logger.debug('Pending matches loaded:', formattedMatches.length, 'items');
     } catch (error) {
-      console.error('Error fetching pending matches:', error);
+      logger.error('Error fetching pending matches:', error);
       setLoading(false);
     }
   };
 
   // Add handler for page change
   const handlePageChange = useCallback((page: number) => {
-    console.log("Page changed to:", page);
+    logger.debug("Page changed to:", page);
     setCurrentPage(page);
   }, []);
 
@@ -100,7 +103,7 @@ const DashboardPage: FC = () => {
 
   // Event handlers that update the single source of truth
   const handleActivate = useCallback(async (row: PendingMatch) => {
-    console.log('Activating pair with ID:', row.id);
+    logger.debug('Activating pair with ID:', row.id);
 
     dashboard.openModal({
       modalId: MODAL_IDS.ACTIVATE_PAIR,
@@ -117,7 +120,7 @@ const DashboardPage: FC = () => {
 
     // Refresh data after activation
     setTimeout(async () => {
-      console.log('Refreshing data after activation...');
+      logger.debug('Refreshing data after activation...');
       await fetchInitialData();
     }, 1000);
   }, []);
@@ -131,7 +134,7 @@ const DashboardPage: FC = () => {
     if (!confirmed) return;
 
     try {
-      console.log('Discarding pending match:', row.id);
+      logger.debug('Discarding pending match:', row.id);
       
       // Optimistic update - remove from UI immediately
       setPendingMatches(prev => prev.filter(match => match.id !== row.id));
@@ -145,7 +148,7 @@ const DashboardPage: FC = () => {
       });
 
     } catch (error) {
-      console.error('Error discarding match:', error);
+      logger.error('Error discarding match:', error);
       // Revert optimistic update on error
       await fetchInitialData();
       

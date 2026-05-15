@@ -15,7 +15,7 @@ interface User {
   skillLevel?: number;
   desiredSkillLevel?: number;
   learningStyle?: number;
-  prefTracks?: number[];
+  prefTracks: number[];
   utcOffset: string | number;
   dateOfRegistered?: string; // Add this line
   openQuestions?: {
@@ -98,7 +98,7 @@ const MatchPopup: React.FC<MatchPopupProps> = ({ israelUser, diasporaUser, onClo
     );
     
     return commonTrackIds.map(trackId => {
-      const trackInfo = Object.values(PreferredTracksInfo).find(t => t.id === trackId);
+      const trackInfo = Object.values(PreferredTracksInfo).find(t => Number(t.id) === trackId);
       return trackInfo?.trackEn || `Track ${trackId}`;
     });
   };

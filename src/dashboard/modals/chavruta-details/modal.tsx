@@ -10,6 +10,9 @@ import '@wix/design-system/styles.global.css';
 import { width, height, title } from './modal.json';
 import ChavrutaDetails from '../../../components/ChavrutaDetails';
 import { updateChavrutaBase } from '../../../data/cmsData';
+import { createLogger } from '../../../utils/logger';
+
+const logger = createLogger('chavruta-details-modal');
 
 // To open your modal, call `openModal` with your modal id.
 // e.g.
@@ -41,7 +44,7 @@ const Modal: FC = () => {
         // ... other required fields
       }));
     } catch (error) {
-      console.error('Error updating note:', error);
+      logger.error('Error updating note:', error);
       throw error;
     }
   };

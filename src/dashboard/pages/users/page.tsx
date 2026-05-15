@@ -10,6 +10,9 @@ import { useTableFilters } from '../../../hooks/useTableFilters';
 import { type User, type UserRow } from '../../../types';
 import { formatUsersForTable } from '../../../utils/userFormatters';
 import { MODAL_IDS } from '../../../constants/modals';
+import { createLogger } from '../../../utils/logger';
+
+const logger = createLogger('users-page');
 
 const DashboardPage: FC = () => {
   // Single source of truth for users data
@@ -44,16 +47,16 @@ const DashboardPage: FC = () => {
   const fetchInitialData = async () => {
     try {
       setLoading(true);
-      console.info('Fetching users data...');
+      logger.info('Fetching users data...');
       const data = await (filters.showArchived ? fetchArchivedUsers() : fetchCMSData());
       
       const formattedUsers = formatUsersForTable(data as User[], filters.showArchived);
 
       setUsers(formattedUsers);
       setLoading(false);
-      console.log('Users loaded:', formattedUsers.length, 'items');
+      logger.debug('Users loaded:', formattedUsers.length, 'items');
     } catch (error) {
-      console.error("Error fetching users data:", error);
+      logger.error("Error fetching users data:", error);
       setLoading(false);
     }
   };
@@ -114,7 +117,7 @@ const DashboardPage: FC = () => {
   }, []);
 
   const handleEditClick = useCallback((row: UserRow) => {
-    console.log("Opening edit modal for user ID:", row.id);
+    logger.debug("Opening edit modal for user ID:", row.id);
     dashboard.openModal({
       modalId: MODAL_IDS.USER_DETAILS,
       params: { 
@@ -125,13 +128,13 @@ const DashboardPage: FC = () => {
   }, []);
 
   const handleNotesClick = useCallback((row: UserRow) => {
-    console.log("Opening notes modal for user ID:", row.id);
+    logger.debug("Opening notes modal for user ID:", row.id);
     dashboard.openModal({
       modalId: MODAL_IDS.NOTES,
       params: { 
         userId: row.id, 
         initialNote: "", 
-        handleSave: () => { console.log("saving..."); }
+        handleSave: () => { logger.debug("saving..."); }
       }
     });
   }, []);
@@ -146,7 +149,7 @@ const DashboardPage: FC = () => {
     if (!confirmed) return;
 
     try {
-      console.log(`${action}ing user:`, row.id);
+      logger.debug(`${action}ing user:`, row.id);
       if (isUnarchiving) {
         await unarchiveUser(row.id);
       } else {
@@ -161,7 +164,7 @@ const DashboardPage: FC = () => {
         type: 'success'
       });
     } catch (error) {
-      console.error(`Error ${action}ing user:`, error);
+      logger.error(`Error ${action}ing user:`, error);
       dashboard.showToast({
         message: `Error ${action}ing user. Please try again.`,
         type: 'error'
@@ -178,7 +181,7 @@ const DashboardPage: FC = () => {
     
 
     try {
-      console.log("Permanently deleting user:", row.id);
+      logger.debug("Permanently deleting user:", row.id);
       // TODO: Implement actual delete API call here
       await deleteUser(row.id);
       
@@ -190,7 +193,7 @@ const DashboardPage: FC = () => {
         type: 'success'
       });
     } catch (error) {
-      console.error('Error deleting user:', error);
+      logger.error('Error deleting user:', error);
       dashboard.showToast({
         message: 'Error deleting user. Please try again.',
         type: 'error'
@@ -264,7 +267,7 @@ const DashboardPage: FC = () => {
   
   // Add handler for page change
   const handlePageChange = useCallback((page: number) => {
-    console.log("Page changed to:", page);
+    logger.debug("Page changed to:", page);
     setCurrentPage(page);
   }, [setCurrentPage]);
 

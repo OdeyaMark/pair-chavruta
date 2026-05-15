@@ -9,6 +9,9 @@ import {
 import '@wix/design-system/styles.global.css';
 import { width, height, title } from './modal.json';
 import { activatePairInDatabase, createNewPairInDatabase, sendPairingEmail, updateChavrutaStatus } from '../../../data/cmsData';
+import { createLogger } from '../../../utils/logger';
+
+const logger = createLogger('activate-pair-modal');
 
 interface ModalParams {
   chavrutaId: string;
@@ -29,16 +32,16 @@ const Modal: FC = () => {
     
     // Get the modal parameters when the modal opens
     const observerResult = dashboard.observeState((receivedParams: any) => {
-      console.log("dashboard.observeState callback called with:", receivedParams);
+      logger.debug("dashboard.observeState callback called with:", receivedParams);
       if (receivedParams) {
         setParams(receivedParams);
       } else {
-        console.log("No params received in observeState");
+        logger.debug("No params received in observeState");
       }
     });
     
     return () => {
-      console.log('Modal cleanup called');
+      logger.debug('Modal cleanup called');
       observerResult?.disconnect?.();
     };
   }, []);
@@ -51,7 +54,7 @@ const Modal: FC = () => {
   const handleSendEmail = async () => {
     
     if (!params) {
-      console.log('No params available, returning early');
+      logger.debug('No params available, returning early');
       return;
     }
 
@@ -66,7 +69,7 @@ const Modal: FC = () => {
       
       dashboard.closeModal();
     } catch (error) {
-      console.error('Error activating pair or sending email:', error);
+      logger.error('Error activating pair or sending email:', error);
       dashboard.showToast({
         message: 'Error activating pair or sending email',
         type: 'error'
@@ -78,7 +81,7 @@ const Modal: FC = () => {
     
     
     if (!params) {
-      console.log('No params available, returning early');
+      logger.debug('No params available, returning early');
       return;
     }
 
@@ -92,7 +95,7 @@ const Modal: FC = () => {
       
       dashboard.closeModal();
     } catch (error) {
-      console.error('Error activating pair:', error);
+      logger.error('Error activating pair:', error);
       dashboard.showToast({
         message: 'Error activating pair',
         type: 'error'
@@ -104,7 +107,7 @@ const Modal: FC = () => {
     dashboard.closeModal();
   };
 
-  console.log('Modal render - step:', step, 'params:', params);
+  logger.debug('Modal render - step:', step, 'params:', params);
 
   if (step === 'confirm') {
     return (

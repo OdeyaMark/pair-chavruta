@@ -8,6 +8,9 @@ import {
 } from '@wix/design-system';
 import '@wix/design-system/styles.global.css';
 import { width, height, title } from './modal.json';
+import { createLogger } from '../../../utils/logger';
+
+const logger = createLogger('to-archive-modal');
 
 
 interface ModalParams {
@@ -43,10 +46,10 @@ const Modal: FC = () => {
     if (userId) {
       try {
         // TODO: Implement archive functionality
-        console.log('Archiving user:', userId);
+        logger.debug('Archiving user:', userId);
         dashboard.closeModal();
       } catch (error) {
-        console.error('Error archiving user:', error);
+        logger.error('Error archiving user:', error);
       }
     }
   };

@@ -13,6 +13,9 @@ import UserCard from '../../../components/UserCard';
 import EditUserForm from '../../../components/EditUserForm';
 import { reverseFormatUserData, prepareDataForSaving } from '../../../data/formatters';
 import ContactPopup from '../../../components/contactPopup';
+import { createLogger } from '../../../utils/logger';
+
+const logger = createLogger('new-modal');
 
 interface ModalParams {
   userId?: string;
@@ -66,7 +69,7 @@ const Modal: FC = () => {
           setUserData(data || null);
         }
       } catch (error) {
-        console.error("Error fetching user data:", error);
+        logger.error("Error fetching user data:", error);
         if (isSubscribed) {
           setUserData(null);
         }
@@ -90,7 +93,7 @@ const Modal: FC = () => {
         await saveUserChanges(dataToSave, modalState.userId);
         dashboard.closeModal();
       } catch (error) {
-        console.error('Error saving user data:', error);
+        logger.error('Error saving user data:', error);
       }
     } else {
       dashboard.closeModal();

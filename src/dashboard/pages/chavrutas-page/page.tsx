@@ -13,6 +13,9 @@ import { PairStatus, PairStatusLabels } from '../../../constants/status';
 import { PreferredTracks, PreferredTracksInfo } from '../../../constants/tracks';
 import { MODAL_IDS } from '../../../constants/modals';
 import { useTablePagination } from '../../../hooks/useTablePagination';
+import { createLogger } from '../../../utils/logger';
+
+const logger = createLogger('chavrutas-page');
 
 
 interface ChavrutaRow {
@@ -62,17 +65,17 @@ const DashboardPage: FC = () => {
 
   // Add logging wrapper for setActiveChavrutas
   const setActiveChavrutasWithLogging = (newValue: any) => {
-    console.log('=== SETTING ACTIVE CHAVRUTAS ===');
-    console.log('New value:', newValue);
-    console.log('Stack trace:', new Error().stack);
+    logger.debug('=== SETTING ACTIVE CHAVRUTAS ===');
+    logger.debug('New value:', newValue);
+    logger.debug('Stack trace:', new Error().stack);
     setActiveChavrutas(newValue);
   };
 
   // Add logging wrapper for setArchivedChavrutas  
   const setArchivedChavrutasWithLogging = (newValue: any) => {
-    console.log('=== SETTING ARCHIVED CHAVRUTAS ===');
-    console.log('New value:', newValue);
-    console.log('Stack trace:', new Error().stack);
+    logger.debug('=== SETTING ARCHIVED CHAVRUTAS ===');
+    logger.debug('New value:', newValue);
+    logger.debug('Stack trace:', new Error().stack);
     setArchivedChavrutas(newValue);
   };
 
@@ -122,14 +125,14 @@ const DashboardPage: FC = () => {
         }
       });
 
-      console.log('Setting active chavrutas:', active.length);
-      console.log('Setting archived chavrutas:', archived.length);
+      logger.debug('Setting active chavrutas:', active.length);
+      logger.debug('Setting archived chavrutas:', archived.length);
       
       setActiveChavrutasWithLogging(active);
       setArchivedChavrutasWithLogging(archived);
       setLoading(false);
     } catch (error) {
-      console.error('Error fetching initial data:', error);
+      logger.error('Error fetching initial data:', error);
       setLoading(false);
     }
   };
@@ -142,7 +145,7 @@ const DashboardPage: FC = () => {
     try {
       const chavrutaToDelete = activeChavrutas.find(chavruta => chavruta.id === id);
       if (!chavrutaToDelete) {
-        console.error('Chavruta not found in active list');
+        logger.error('Chavruta not found in active list');
         return;
       }
 
@@ -165,7 +168,7 @@ const DashboardPage: FC = () => {
       await deleteChavrutaAndUpdateUsers(id);
 
     } catch (error) {
-      console.error('Error in handleDeletePair:', error);
+      logger.error('Error in handleDeletePair:', error);
       // Revert optimistic updates on failure
       setActiveChavrutas(prevActiveChavrutas);
       setArchivedChavrutas(prevArchivedChavrutas);
@@ -188,7 +191,7 @@ const DashboardPage: FC = () => {
 
   // Add handler for page change
   const handlePageChange = useCallback((page: number) => {
-    console.log("Page changed to:", page);
+    logger.debug("Page changed to:", page);
     setCurrentPage(page);
   }, []);
 
@@ -289,18 +292,18 @@ const DashboardPage: FC = () => {
       }));
       
     } catch (error) {
-      console.error('Error updating status:', error);
+      logger.error('Error updating status:', error);
     }
   };
 
   // Update handleTrackChange function
   const handleTrackChange = async (rowId: string, newTrack: string) => {
     try {
-      console.log('Changing track for', rowId, 'to', newTrack);
+      logger.debug('Changing track for', rowId, 'to', newTrack);
       // Find track ID using PreferredTracksInfo
       const trackId = Object.values(PreferredTracksInfo).find(t => t.trackEn === newTrack)?.id;
       if (!trackId) {
-        console.error('Could not find track ID for track:', newTrack);
+        logger.error('Could not find track ID for track:', newTrack);
         return;
       }
       
@@ -324,7 +327,7 @@ const DashboardPage: FC = () => {
       }
       
     } catch (error) {
-      console.error('Error updating track:', error);
+      logger.error('Error updating track:', error);
     }
   };
       
@@ -332,10 +335,10 @@ const DashboardPage: FC = () => {
   // Update the handleDetailsClick function
   const handleDetailsClick = useCallback((row: any, e?: React.MouseEvent) => {
     if (e) { e.stopPropagation(); }
-    console.log('handleDetailsClick called', { id: row?.id, activeLen: activeChavrutas.length, archivedLen: archivedChavrutas.length, currentLen: currentChavrutas.length });
+    logger.debug('handleDetailsClick called', { id: row?.id, activeLen: activeChavrutas.length, archivedLen: archivedChavrutas.length, currentLen: currentChavrutas.length });
     // use the provided row directly (no lookup)
     if (!row) {
-      console.error('No row provided to handleDetailsClick');
+      logger.error('No row provided to handleDetailsClick');
       return;
     }
     dashboard.openModal({

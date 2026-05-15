@@ -9,6 +9,9 @@ import {
 import '@wix/design-system/styles.global.css';
 import { width, height } from './modal.json';
 import NotesSection from '../../../components/NotesSection';
+import { createLogger } from '../../../utils/logger';
+
+const logger = createLogger('delete-pair-modal');
 
 
 
@@ -31,7 +34,7 @@ const Modal: FC = () => {
   const [deleteReason, setDeleteReason] = useState<string>('');
 
   useEffect(() => {
-    console.log("opening delete modal");
+    logger.debug("opening delete modal");
     const observerResult = dashboard.observeState((params: ModalParams) => {
       if (params) {
         setModalState({
@@ -51,7 +54,7 @@ const Modal: FC = () => {
         dashboard.closeModal();
       }
     } catch (error) {
-      console.error('Error deleting pair:', error);
+      logger.error('Error deleting pair:', error);
     }
   };
 

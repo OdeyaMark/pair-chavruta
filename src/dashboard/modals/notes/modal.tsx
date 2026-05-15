@@ -8,6 +8,9 @@ import {
 import '@wix/design-system/styles.global.css';
 import { width, height } from './modal.json';
 import NotesSection from '../../../components/NotesSection';
+import { createLogger } from '../../../utils/logger';
+
+const logger = createLogger('notes-modal');
 
 interface ModalParams {
   userId: string;
@@ -50,7 +53,7 @@ const Modal: FC = () => {
         dashboard.closeModal();
       }
     } catch (error) {
-      console.error('Error saving note:', error);
+      logger.error('Error saving note:', error);
     }
   };
 
