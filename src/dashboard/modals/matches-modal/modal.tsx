@@ -10,6 +10,7 @@ import MatchPopup from '../../../components/matchPopup';
 import { getUserById } from '../../../data/cmsData';
 import { createLogger } from '../../../utils/logger';
 import type { User as AppUser } from '../../../types';
+import { useDashboardModalParams } from '../../../hooks/useDashboardModalParams';
 
 const logger = createLogger('matches-modal');
 
@@ -38,6 +39,7 @@ const Modal: FC = () => {
   const [user2, setUser2] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const params = useDashboardModalParams<MatchModalParams>();
 
   const normalizePrefTracks = (prefTracks?: AppUser['prefTracks']): number[] => {
     if (!prefTracks) return [];
@@ -50,14 +52,11 @@ const Modal: FC = () => {
   };
 
   useEffect(() => {
-    const observerResult = dashboard.observeState((params: MatchModalParams) => {
-      if (params?.selectedUserId && params?.matchUserId) {
-        logger.debug('Received match modal params:', params);
-        fetchUsers(params.selectedUserId, params.matchUserId);
-      }
-    });
-    return () => observerResult?.disconnect?.();
-  }, []);
+    if (params?.selectedUserId && params?.matchUserId) {
+      logger.debug('Received match modal params:', params);
+      fetchUsers(params.selectedUserId, params.matchUserId);
+    }
+  }, [params]);
 
   const fetchUsers = async (userId1: string, userId2: string) => {
     setLoading(true);

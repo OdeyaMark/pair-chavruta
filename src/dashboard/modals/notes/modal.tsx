@@ -9,6 +9,7 @@ import '@wix/design-system/styles.global.css';
 import { width, height } from './modal.json';
 import NotesSection from '../../../components/NotesSection';
 import { createLogger } from '../../../utils/logger';
+import { useDashboardModalParams } from '../../../hooks/useDashboardModalParams';
 
 const logger = createLogger('notes-modal');
 
@@ -31,20 +32,19 @@ const initialModalState: ModalState = {
 
 const Modal: FC = () => {
   const [modalState, setModalState] = useState<ModalState>(initialModalState);
+  const params = useDashboardModalParams<ModalParams>();
 
   useEffect(() => {
-    const observerResult = dashboard.observeState((params: ModalParams) => {
-      if (params) {
-        setModalState({
-          userId: params.userId || null,
-          initialNote: params.initialNote || '',
-          onSave: params.onSave,
-        });
-      }
-    });
+    if (!params) {
+      return;
+    }
 
-    return () => observerResult?.disconnect?.();
-  }, []);
+    setModalState({
+      userId: params.userId || null,
+      initialNote: params.initialNote || '',
+      onSave: params.onSave,
+    });
+  }, [params]);
 
   const handleSave = async (note: string) => {
     try {

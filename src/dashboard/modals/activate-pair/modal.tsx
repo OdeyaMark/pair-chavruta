@@ -1,4 +1,4 @@
-import React, { type FC, useState, useEffect } from 'react';
+import React, { type FC, useState } from 'react';
 import { dashboard } from '@wix/dashboard';
 import {
   WixDesignSystemProvider,
@@ -10,6 +10,7 @@ import '@wix/design-system/styles.global.css';
 import { width, height, title } from './modal.json';
 import { activatePairInDatabase, sendPairingEmail } from '../../../data/cmsData';
 import { createLogger } from '../../../utils/logger';
+import { useDashboardModalParams } from '../../../hooks/useDashboardModalParams';
 
 const logger = createLogger('activate-pair-modal');
 
@@ -26,25 +27,11 @@ interface ModalParams {
 
 const Modal: FC = () => {
   const [step, setStep] = useState<'confirm' | 'email'>('confirm');
-  const [params, setParams] = useState<ModalParams | null>(null);
+  const params = useDashboardModalParams<ModalParams>();
 
-  useEffect(() => {
-    
-    // Get the modal parameters when the modal opens
-    const observerResult = dashboard.observeState((receivedParams: any) => {
-      logger.debug("dashboard.observeState callback called with:", receivedParams);
-      if (receivedParams) {
-        setParams(receivedParams);
-      } else {
-        logger.debug("No params received in observeState");
-      }
-    });
-    
-    return () => {
-      logger.debug('Modal cleanup called');
-      observerResult?.disconnect?.();
-    };
-  }, []);
+  if (!params) {
+    logger.debug('Modal render - waiting for params');
+  }
 
   const handleConfirm = () => {
     // Move to the email confirmation step

@@ -11,6 +11,7 @@ import { width, height, title } from './modal.json';
 import ChavrutaDetails from '../../../components/ChavrutaDetails';
 import { updateChavrutaBase } from '../../../data/cmsData';
 import { createLogger } from '../../../utils/logger';
+import { useDashboardModalParams } from '../../../hooks/useDashboardModalParams';
 
 const logger = createLogger('chavruta-details-modal');
 
@@ -21,17 +22,8 @@ const logger = createLogger('chavruta-details-modal');
 //   return <button onClick={() => dashboard.openModal('c83c7139-5b30-4e82-be8f-6870568f6ee0')}>Open Modal</button>;
 // }
 const Modal: FC = () => {
-  const [modalParams, setModalParams] = useState<ModalParams | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const observerResult = dashboard.observeState((params: ModalParams) => {
-      setModalParams(params);
-      setIsLoading(false);
-    });
-
-    return () => observerResult?.disconnect?.();
-  }, []);
+  const modalParams = useDashboardModalParams<ModalParams>();
+  const isLoading = !modalParams;
 
   const handleNoteChange = async (note: string) => {
     if (!modalParams?.chavrutaId) return;

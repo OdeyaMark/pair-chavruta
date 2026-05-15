@@ -10,6 +10,7 @@ import '@wix/design-system/styles.global.css';
 import { width, height, title } from './modal.json';
 import { createLogger } from '../../../utils/logger';
 import { archiveUser, getUserById } from '../../../data/cmsData';
+import { useDashboardModalParams } from '../../../hooks/useDashboardModalParams';
 
 const logger = createLogger('to-archive-modal');
 
@@ -22,19 +23,17 @@ const Modal: FC = () => {
   const [userId, setUserId] = useState<string | null>(null);
   const [userName, setUserName] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
+  const params = useDashboardModalParams<ModalParams>();
 
   // Effect for initializing userId from dashboard state
   React.useEffect(() => {
-    const observerResult = dashboard.observeState((params: ModalParams) => {
-      if (params?.userId) {
-        setUserId(params.userId);
-      } else {
-        setIsLoading(false);
-      }
-    });
+    if (params?.userId) {
+      setUserId(params.userId);
+      return;
+    }
 
-    return () => observerResult?.disconnect?.();
-  }, []);
+    setIsLoading(false);
+  }, [params]);
 
   // Effect for fetching user data
   React.useEffect(() => {
