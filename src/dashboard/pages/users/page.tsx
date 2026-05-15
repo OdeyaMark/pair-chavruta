@@ -7,7 +7,6 @@ import { dashboard } from '@wix/dashboard';
 import { useTablePagination } from '../../../hooks/useTablePagination';
 import { useTableSearch } from '../../../hooks/useTableSearch';
 import { useTableFilters } from '../../../hooks/useTableFilters';
-import ContactPopup from '../../../components/contactPopup';
 import { type User, type UserRow } from '../../../types';
 import { formatUsersForTable } from '../../../utils/userFormatters';
 import { MODAL_IDS } from '../../../constants/modals';
@@ -35,15 +34,6 @@ const DashboardPage: FC = () => {
   const { currentPage, pageSize, setCurrentPage, paginate } = useTablePagination({
     pageSize: 10,
     resetDependencies: [filters.showArchived, filters.year, filters.location, filters.hasChavruta, debouncedSearchTerm]
-  });
-  const [contactPopup, setContactPopup] = useState<{
-    isOpen: boolean;
-    email: string;
-    tel: string;
-  }>({
-    isOpen: false,
-    email: '',
-    tel: ''
   });
 
   // Fetch data once and when showArchived changes
@@ -389,7 +379,7 @@ const DashboardPage: FC = () => {
               </Box>
 
               {/* Table Section - Add onPageChange prop */}
-              <GenericTable 
+              <GenericTable<UserRow>
                 columns={columns} 
                 data={displayData.data}
                 total={displayData.total}
@@ -400,15 +390,6 @@ const DashboardPage: FC = () => {
                 onPageChange={handlePageChange}
                 pageSize={pageSize}
               />
-              
-              {/* ContactPopup has type issues - needs onClose prop added to component
-              {contactPopup.isOpen && (
-                <ContactPopup
-                  email={contactPopup.email}
-                  phone={contactPopup.tel}
-                  onClose={() => setContactPopup(prev => ({ ...prev, isOpen: false }))}
-                />
-              )} */}
             </div>
           </div>
         </Page.Content>

@@ -32,7 +32,7 @@ export const useTableSearch = (
   options: UseTableSearchOptions = {}
 ): UseTableSearchReturn => {
   const { debounceMs = 300, onSearchChange } = options;
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTermState] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
 
   // Debounced function to update the search term
@@ -48,13 +48,19 @@ export const useTableSearch = (
 
   // Handle search input changes
   const handleSearchChange = useCallback((value: string) => {
-    setSearchTerm(value);
+    setSearchTermState(value);
+    debouncedUpdate(value);
+  }, [debouncedUpdate]);
+
+  // Public setter keeps immediate and debounced values in sync.
+  const setSearchTerm = useCallback((value: string) => {
+    setSearchTermState(value);
     debouncedUpdate(value);
   }, [debouncedUpdate]);
 
   const clearSearch = useCallback(() => {
     debouncedUpdate.cancel();
-    setSearchTerm('');
+    setSearchTermState('');
     setDebouncedSearchTerm('');
     if (onSearchChange) {
       onSearchChange('');

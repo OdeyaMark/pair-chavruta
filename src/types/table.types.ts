@@ -1,26 +1,30 @@
 import React from 'react';
 
-export interface TableColumn {
+export interface TableRowBase {
+  id?: string;
+}
+
+export interface TableColumn<TRow extends TableRowBase = TableRowBase> {
   key: string;
   label: string;
-  onClick?: (row: any) => void;
-  render?: (row: any) => React.ReactNode;
+  onClick?: (row: TRow) => void;
+  render?: (row: TRow) => React.ReactNode;
   editable?: {
     options: Array<{ value: string; label: string }>;
     onSelect: (rowId: string, value: string) => void;
-  } | ((row: any) => {
+  } | ((row: TRow) => {
     options: Array<{ value: string; label: string }>;
     onSelect: (rowId: string, value: string) => void;
   } | undefined);
 }
 
-export interface GenericTableProps {
-  columns: TableColumn[];
-  data: any[];
+export interface GenericTableProps<TRow extends TableRowBase = TableRowBase> {
+  columns: TableColumn<TRow>[];
+  data: TRow[];
   total: number;
   loading?: boolean;
   onSearch?: (searchTerm: string) => void;
-  onRowClick?: (row: any) => void;
+  onRowClick?: (row: TRow) => void;
   currentPage?: number;
   onPageChange?: (page: number) => void;
   pageSize?: number;

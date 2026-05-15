@@ -3,7 +3,7 @@ import { Pencil, Trash2, Eye, Settings, Plus, X, Check, Contact2, Archive, Archi
 import { IconButton } from './table/IconButton';
 import { ActivateButton, DiscardButton, DeleteButton } from './table/TableButtons';
 import { EditableCell, DropdownState } from './table/EditableCell';
-import type { TableColumn, GenericTableProps } from '../types/table.types';
+import type { TableColumn, GenericTableProps, TableRowBase } from '../types/table.types';
 import '../styles/UserTable.css';
 
 // Re-export for backward compatibility
@@ -27,7 +27,7 @@ const ICON_MAP: Record<string, React.ComponentType<any>> = {
 
 const DEFAULT_PAGE_SIZE = 10;
 
-export const GenericTable: React.FC<GenericTableProps> = ({ 
+export const GenericTable = <TRow extends TableRowBase = TableRowBase>({ 
   columns, 
   data, 
   total,
@@ -38,7 +38,7 @@ export const GenericTable: React.FC<GenericTableProps> = ({
   onPageChange,
   pageSize = DEFAULT_PAGE_SIZE,
   selectedRowId
-}) => {
+}: GenericTableProps<TRow>) => {
   const [search, setSearch] = useState("");
   const [dropdown, setDropdown] = useState<DropdownState>({
     isOpen: false,
@@ -76,8 +76,8 @@ export const GenericTable: React.FC<GenericTableProps> = ({
   // Add a safe columns array to avoid undefined in preview builds
   const safeColumns = Array.isArray(columns) ? columns : [];
 
-  const renderCellContent = (columnKey: string, value: any, row: any) => {
-    const column = safeColumns.find(col => col.key === columnKey);
+  const renderCellContent = (columnKey: string, value: unknown, row: TRow) => {
+    const column = safeColumns.find((col: TableColumn<TRow>) => col.key === columnKey);
 
     // Handle function-based or static editable configuration
     let editableConfig;
@@ -202,7 +202,7 @@ export const GenericTable: React.FC<GenericTableProps> = ({
                     }}
                     className={col.onClick ? 'clickable' : ''}
                   >
-                    {renderCellContent(col.key, row?.[col.key], row)}
+                    {renderCellContent(col.key, (row as Record<string, unknown>)?.[col.key], row)}
                   </td>
                 ))}
               </tr>

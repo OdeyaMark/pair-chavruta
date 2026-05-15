@@ -1,10 +1,6 @@
 import React, { memo } from 'react';
 import { EditableLabelValue } from './EditableLabelValue';
-
-interface LabelValuePair {
-  label: string;
-  value: string | number;
-}
+import type { LabelValuePair } from '../types';
 
 interface LabelValueSectionProps {
   title: string;
