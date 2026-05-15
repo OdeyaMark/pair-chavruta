@@ -1,4 +1,4 @@
-import { useState, useEffect, DependencyList } from 'react';
+import { useState, useEffect, useCallback, DependencyList } from 'react';
 
 interface UseTablePaginationOptions {
   pageSize?: number;
@@ -10,6 +10,7 @@ interface UseTablePaginationReturn {
   pageSize: number;
   setCurrentPage: (page: number) => void;
   resetToFirstPage: () => void;
+  paginate: <T>(data: T[]) => T[];
 }
 
 /**
@@ -43,10 +44,16 @@ export const useTablePagination = (
     setCurrentPage(1);
   };
 
+  const paginate = useCallback(<T>(data: T[]): T[] => {
+    const startIdx = (currentPage - 1) * pageSize;
+    return data.slice(startIdx, startIdx + pageSize);
+  }, [currentPage, pageSize]);
+
   return {
     currentPage,
     pageSize,
     setCurrentPage,
-    resetToFirstPage
+    resetToFirstPage,
+    paginate
   };
 };

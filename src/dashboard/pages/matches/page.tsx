@@ -7,6 +7,8 @@ import { Eye, Handshake } from 'lucide-react';
 import { dashboard } from '@wix/dashboard';
 import '../../../styles/matches.css';
 import { checkUserCompatibilityDebug, calculateMatchPercentage } from '../../../data/matchLogic';
+import { MODAL_IDS } from '../../../constants/modals';
+import { useTablePagination } from '../../../hooks/useTablePagination';
 
 
 interface User {
@@ -49,10 +51,25 @@ const DashboardPage: FC = () => {
   const [matchSearchTerm, setMatchSearchTerm] = useState('');
   
   // Pagination state - separate for each table
-  const [usersCurrentPage, setUsersCurrentPage] = useState(1);
-  const [matchesCurrentPage, setMatchesCurrentPage] = useState(1);
-  const usersPageSize = 10;
-  const matchesPageSize = 10;
+  const {
+    currentPage: usersCurrentPage,
+    pageSize: usersPageSize,
+    setCurrentPage: setUsersCurrentPage,
+    paginate: paginateUsers
+  } = useTablePagination({
+    pageSize: 10,
+    resetDependencies: [showAllUsers, searchTerm]
+  });
+
+  const {
+    currentPage: matchesCurrentPage,
+    pageSize: matchesPageSize,
+    setCurrentPage: setMatchesCurrentPage,
+    paginate: paginateMatches
+  } = useTablePagination({
+    pageSize: 10,
+    resetDependencies: [showOnlyMatching, matchSearchTerm, selectedUser]
+  });
   
   const [trackSelection, setTrackSelection] = useState<{[key: string]: string}>({});
   const [allTracks, setAllTracks] = useState<Array<{id: number, trackEn: string}>>([]);
@@ -62,16 +79,6 @@ const DashboardPage: FC = () => {
   useEffect(() => {
     fetchInitialData();
   }, []);
-
-  // Reset users page when filters change
-  useEffect(() => {
-    setUsersCurrentPage(1);
-  }, [showAllUsers, searchTerm]);
-
-  // Reset matches page when filters change
-  useEffect(() => {
-    setMatchesCurrentPage(1);
-  }, [showOnlyMatching, matchSearchTerm, selectedUser]);
 
   const fetchInitialData = async () => {
     try {
@@ -137,10 +144,8 @@ const DashboardPage: FC = () => {
 
   // Computed paginated data for users table
   const usersPaginatedData = useMemo(() => {
-    const startIndex = (usersCurrentPage - 1) * usersPageSize;
-    const endIndex = startIndex + usersPageSize;
-    return usersFilteredData.slice(startIndex, endIndex);
-  }, [usersFilteredData, usersCurrentPage, usersPageSize]);
+    return paginateUsers(usersFilteredData);
+  }, [usersFilteredData, paginateUsers]);
 
   // Computed filtered data for matches table
   const matchesFilteredData = useMemo(() => {
@@ -166,10 +171,8 @@ const DashboardPage: FC = () => {
 
   // Computed paginated data for matches table
   const matchesPaginatedData = useMemo(() => {
-    const startIndex = (matchesCurrentPage - 1) * matchesPageSize;
-    const endIndex = startIndex + matchesPageSize;
-    return matchesFilteredData.slice(startIndex, endIndex);
-  }, [matchesFilteredData, matchesCurrentPage, matchesPageSize]);
+    return paginateMatches(matchesFilteredData);
+  }, [matchesFilteredData, paginateMatches]);
 
   // Pagination handlers - separate for each table
   const handleUsersPageChange = useCallback((page: number) => {
@@ -185,18 +188,16 @@ const DashboardPage: FC = () => {
   // Search handlers - separate for each table
   const handleUsersSearch = useCallback((search: string) => {
     setSearchTerm(search);
-    setUsersCurrentPage(1); // Reset to page 1 on search
   }, []);
 
   const handleMatchesSearch = useCallback((search: string) => {
     setMatchSearchTerm(search);
-    setMatchesCurrentPage(1); // Reset to page 1 on search
   }, []);
 
   // Event handlers
   const handleUserDetailsClick = useCallback((row: User) => {
     dashboard.openModal({
-      modalId: '45308f7c-1309-42a3-8a0b-00611cab9ebe',
+      modalId: MODAL_IDS.USER_DETAILS,
       params: { userId: row.id }
     });
   }, []);
@@ -204,13 +205,12 @@ const DashboardPage: FC = () => {
   const handleMatchRowClick = useCallback((row: User) => {
     if (selectedUser && row) {
       dashboard.openModal({
-        modalId: 'f03b650d-46f9-43ce-92b0-9bba324c1a20',
+        modalId: MODAL_IDS.MATCHES,
         params: { 
           selectedUserId: selectedUser.id,
           matchUserId: row.id
         }
       });
-      //
     }
   }, [selectedUser]);
 

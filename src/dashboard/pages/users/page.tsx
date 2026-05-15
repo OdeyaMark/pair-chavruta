@@ -8,32 +8,9 @@ import { useTablePagination } from '../../../hooks/useTablePagination';
 import { useTableSearch } from '../../../hooks/useTableSearch';
 import { useTableFilters } from '../../../hooks/useTableFilters';
 import ContactPopup from '../../../components/contactPopup';
-
-interface CMSUser {
-  _id: string;
-  fullName: string;
-  country: string;
-  matchTo: number;
-  prefNumberOfMatches: number;
-  dateOfRegistered: string;
-  _createdDate: string;
-  // Add other fields as needed
-}
-
-interface UserRow {
-  id: string;
-  fullName: string;
-  country: string;
-  hasChavruta: string;
-  details: string;
-  contactDetails: string;
-  edit: string;
-  notes: string;
-  archive: string;
-  delete: string;  // Add this line
-  registrationDate: string;
-  registrationYear: string;
-}
+import { type User, type UserRow } from '../../../types';
+import { formatUsersForTable } from '../../../utils/userFormatters';
+import { MODAL_IDS } from '../../../constants/modals';
 
 const DashboardPage: FC = () => {
   // Single source of truth for users data
@@ -55,7 +32,7 @@ const DashboardPage: FC = () => {
   
   const { debouncedSearchTerm, handleSearchChange } = useTableSearch();
   
-  const { currentPage, pageSize, setCurrentPage } = useTablePagination({
+  const { currentPage, pageSize, setCurrentPage, paginate } = useTablePagination({
     pageSize: 10,
     resetDependencies: [filters.showArchived, filters.year, filters.location, filters.hasChavruta, debouncedSearchTerm]
   });
@@ -80,24 +57,7 @@ const DashboardPage: FC = () => {
       console.info('Fetching users data...');
       const data = await (filters.showArchived ? fetchArchivedUsers() : fetchCMSData());
       
-      const formattedUsers = (data as CMSUser[]).map((item) => ({
-        id: item._id || "",
-        fullName: item.fullName || "",
-        country: item.country || "",
-        hasChavruta: item.matchTo < item.prefNumberOfMatches ? "No" : "Yes",
-        details: "View",
-        contactDetails: "",
-        edit: "edit",
-        notes: "",
-        archive: filters.showArchived ? "↑ Unarchive" : "↓ Archive",
-        delete: "Delete",
-        registrationDate: new Date(item.dateOfRegistered).toLocaleDateString('en-US', {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric'
-        }),
-        registrationYear: new Date(item.dateOfRegistered).getFullYear().toString()
-      }));
+      const formattedUsers = formatUsersForTable(data as User[], filters.showArchived);
 
       setUsers(formattedUsers);
       setLoading(false);
@@ -138,29 +98,24 @@ const DashboardPage: FC = () => {
         user.country.toLowerCase().includes(search)
       );
     }
-    // Pagination
-     const startIdx = (currentPage - 1) * pageSize;
-     console.log("Current Page:", currentPage, "Start Index:", startIdx);
-    const paginatedData = filtered.slice(startIdx, startIdx + pageSize);
-    console.log("Filtered and paginated data:", paginatedData);
     return {
-      data: paginatedData,
+      data: paginate(filtered),
       total: filtered.length
     };
-  }, [users, filters, debouncedSearchTerm, currentPage, pageSize]);
+  }, [users, filters, debouncedSearchTerm, paginate]);
 
  
   // Event handlers that accept row objects
   const handleDetailsClick = useCallback((row: UserRow) => {
     dashboard.openModal({
-      modalId: '45308f7c-1309-42a3-8a0b-00611cab9ebe', 
+      modalId: MODAL_IDS.USER_DETAILS,
       params: { userId: row.id }
     });
   }, []);
 
   const handleContactClick = useCallback((row: UserRow) => {
     dashboard.openModal({
-      modalId: '45308f7c-1309-42a3-8a0b-00611cab9ebe',
+      modalId: MODAL_IDS.USER_DETAILS,
       params: { 
         userId: row.id,
         contactMode: true 
@@ -171,7 +126,7 @@ const DashboardPage: FC = () => {
   const handleEditClick = useCallback((row: UserRow) => {
     console.log("Opening edit modal for user ID:", row.id);
     dashboard.openModal({
-      modalId: '45308f7c-1309-42a3-8a0b-00611cab9ebe', 
+      modalId: MODAL_IDS.USER_DETAILS,
       params: { 
         userId: row.id, 
         editMode: true 
@@ -182,7 +137,7 @@ const DashboardPage: FC = () => {
   const handleNotesClick = useCallback((row: UserRow) => {
     console.log("Opening notes modal for user ID:", row.id);
     dashboard.openModal({
-      modalId: '87855b31-290a-42c2-804a-7b776bdb8f5b', 
+      modalId: MODAL_IDS.NOTES,
       params: { 
         userId: row.id, 
         initialNote: "", 

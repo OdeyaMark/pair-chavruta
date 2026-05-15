@@ -1,44 +1,7 @@
 import { PreferredTracksInfo } from "../constants/tracks";
+import type { LabelValuePair, Question, LearningTime, LearningTimes, ChavrutaCardProps, TrackInfo } from '../types';
 
-
-export interface LabelValuePair {
-  label: string;
-  value: string | number;
-}
-
-export interface Question {
-  id: string;
-  question: string;
-  answer: string;
-}
-
-export interface LearningTime {
-  morning: boolean;
-  noon: boolean;      // Add this
-  evening: boolean;
-  lateNight: boolean; }
-
-export interface LearningTimes {
-  sunday: LearningTime;
-  monday: LearningTime;
-  tuesday: LearningTime;
-  wednesday: LearningTime;
-  thursday: LearningTime;
-}
-
-interface TrackInfo {
-    id: string;
-    trackEn: string;
-  }
-
-export interface ChavrutaCardProps {
-  chavrutaPreference: LabelValuePair[];
-  extraDetails: LabelValuePair[];
-  learningTracks: TrackInfo[];
-  languages: LabelValuePair[];
-  learningTimes: LearningTimes;
-  openQuestions: Question[];
-}
+export type { LabelValuePair, Question, LearningTime, LearningTimes, ChavrutaCardProps } from '../types';
 
 export const EnglishLevels = ["Doesn't have to be perfect. I know some Hebrew", "Conversational level", "Excellent (I don't know any Hebrew whatsoever)", "not specified"];
 export const SkillLevels = ["Beginner", "Moderate", "Advanced", "not specified"];
@@ -87,7 +50,7 @@ const checkTimeSlot = (dayValue: any, slot: string) => {
 
 
 // Main formatting function
-export async function formatUserData(rawUser: Record<string, any>): ChavrutaCardProps {
+export async function formatUserData(rawUser: Record<string, any>): Promise<ChavrutaCardProps> {
 
   const learningTimes: LearningTimes = {
     sunday: {

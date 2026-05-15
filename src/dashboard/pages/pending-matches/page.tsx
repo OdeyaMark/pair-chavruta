@@ -5,6 +5,7 @@ import { GenericTable } from '../../../components/GenericTable';
 import { fetchPendingChavrutasFromCMS, deleteChavrutaAndUpdateUsers } from '../../../data/cmsData';
 import { PreferredTracksInfo } from '../../../constants/tracks';
 import { dashboard } from '@wix/dashboard';
+import { MODAL_IDS } from '../../../constants/modals';
 
 // Interface for the pending match data
 interface PendingMatch {
@@ -102,7 +103,7 @@ const DashboardPage: FC = () => {
     console.log('Activating pair with ID:', row.id);
 
     dashboard.openModal({
-      modalId: '66aac142-762d-4489-a349-94be53e515c4',
+      modalId: MODAL_IDS.ACTIVATE_PAIR,
       params: { 
         chavrutaId: row.id,
         sourceUserId: row.israeliId,
