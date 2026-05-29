@@ -25,6 +25,20 @@ interface User {
   prefNumberOfMatches?: number;
 }
 
+export type MatchFailureReason =
+  | 'country'
+  | 'gender'
+  | 'english'
+  | 'tracks'
+  | 'time'
+  | 'limit';
+
+export interface MatchCompatibilityAnalysis {
+  isCompatible: boolean;
+  firstFailedReason: MatchFailureReason | null;
+  failedReasons: MatchFailureReason[];
+}
+
 const TIME_SLOTS = {
   Morning: { start: 5, end: 12 },    // 05:00 - 12:00
   Noon: { start: 12, end: 18 },      // 12:00 - 18:00
@@ -80,6 +94,48 @@ export function checkUserCompatibility(sourceUser: User, potentialPair: User): b
   }
 
   return true;
+}
+
+export function analyzeMatchCompatibility(
+  sourceUser: User,
+  potentialPair: User
+): MatchCompatibilityAnalysis {
+  const failedReasons: MatchFailureReason[] = [];
+
+  if (!checkCountryCompatibility(sourceUser, potentialPair)) {
+    failedReasons.push('country');
+  }
+
+  if (!checkGenderCompatibility(
+    sourceUser.gender,
+    sourceUser.prefGender,
+    potentialPair.gender,
+    potentialPair.prefGender
+  )) {
+    failedReasons.push('gender');
+  }
+
+  if (!checkEnglishLevelCompatibility(sourceUser, potentialPair)) {
+    failedReasons.push('english');
+  }
+
+  if (!checkTrackCompatibility(sourceUser, potentialPair)) {
+    failedReasons.push('tracks');
+  }
+
+  if (!checkLearningTimeCompatibility(sourceUser, potentialPair)) {
+    failedReasons.push('time');
+  }
+
+  if (!checkMatchingLimitCompatibility(potentialPair)) {
+    failedReasons.push('limit');
+  }
+
+  return {
+    isCompatible: failedReasons.length === 0,
+    firstFailedReason: failedReasons[0] ?? null,
+    failedReasons,
+  };
 }
 
 /**

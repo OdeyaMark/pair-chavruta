@@ -6,7 +6,11 @@ import { createNewPairInDatabase, fetchMatchData, getTracks } from '../../../dat
 import { Eye, Handshake } from 'lucide-react';
 import { dashboard } from '@wix/dashboard';
 import '../../../styles/matches.css';
-import { checkUserCompatibilityDebug, calculateMatchPercentage } from '../../../data/matchLogic';
+import {
+  analyzeMatchCompatibility,
+  calculateMatchPercentage,
+  type MatchFailureReason,
+} from '../../../data/matchLogic';
 import { MODAL_IDS } from '../../../constants/modals';
 import { useTablePagination } from '../../../hooks/useTablePagination';
 import { createLogger } from '../../../utils/logger';
@@ -38,7 +42,18 @@ interface User {
   commonTracks?: string[];
   havrutaFound?: boolean;
   isCompatible?: boolean;
+  firstFailedReason?: MatchFailureReason | null;
+  failedReasons?: MatchFailureReason[];
 }
+
+const FAILURE_REASON_LABELS: Record<MatchFailureReason, string> = {
+  country: 'Country rule',
+  gender: 'Gender preference mismatch',
+  english: 'English level mismatch',
+  tracks: 'No shared track',
+  time: 'No time overlap',
+  limit: 'Match limit reached',
+};
 
 const DashboardPage: FC = () => {
   // Single source of truth for data
@@ -177,6 +192,47 @@ const DashboardPage: FC = () => {
     return paginateMatches(matchesFilteredData);
   }, [matchesFilteredData, paginateMatches]);
 
+  const noMatchInsight = useMemo(() => {
+    if (!selectedUser || potentialMatches.length === 0) {
+      return null;
+    }
+
+    const compatibleCount = potentialMatches.filter(match => match.isCompatible).length;
+    if (compatibleCount > 0) {
+      return null;
+    }
+
+    const failureCounts = potentialMatches.reduce<Record<MatchFailureReason, number>>((accumulator, match) => {
+      if (match.firstFailedReason) {
+        accumulator[match.firstFailedReason] += 1;
+      }
+
+      return accumulator;
+    }, {
+      country: 0,
+      gender: 0,
+      english: 0,
+      tracks: 0,
+      time: 0,
+      limit: 0,
+    });
+
+    const topReasons = Object.entries(failureCounts)
+      .filter(([, count]) => count > 0)
+      .sort((left, right) => right[1] - left[1])
+      .slice(0, 3)
+      .map(([reason, count]) => ({
+        reason: reason as MatchFailureReason,
+        count,
+        percent: Math.round((count / potentialMatches.length) * 100),
+      }));
+
+    return {
+      checkedCount: potentialMatches.length,
+      topReasons,
+    };
+  }, [selectedUser, potentialMatches]);
+
   // Pagination handlers - separate for each table
   const handleUsersPageChange = useCallback((page: number) => {
     logger.debug("Users page changed to:", page);
@@ -269,7 +325,8 @@ const DashboardPage: FC = () => {
         prefNumberOfMatches: user.prefNumberOfMatches
       };
 
-      const isCompatible = checkUserCompatibilityDebug(rawSelectedUser, rawPotentialMatch);
+      const compatibilityAnalysis = analyzeMatchCompatibility(rawSelectedUser, rawPotentialMatch);
+      const isCompatible = compatibilityAnalysis.isCompatible;
       const matchPercentage = isCompatible 
         ? calculateMatchPercentage(rawSelectedUser, rawPotentialMatch)
         : 0;
@@ -293,7 +350,9 @@ const DashboardPage: FC = () => {
         ...user,
         matchPercentage,
         commonTracks,
-        isCompatible
+        isCompatible,
+        firstFailedReason: compatibilityAnalysis.firstFailedReason,
+        failedReasons: compatibilityAnalysis.failedReasons,
       });
     }
 
@@ -441,6 +500,17 @@ const DashboardPage: FC = () => {
   const matchColumns = useMemo(() => [
     { key: "fullName", label: "Full Name" },
     { key: "country", label: "Country" },
+    {
+      key: "blocker",
+      label: "First Blocker",
+      render: (row: User) => {
+        if (row.isCompatible) {
+          return showOnlyMatching ? '' : 'Matchable';
+        }
+
+        return row.firstFailedReason ? FAILURE_REASON_LABELS[row.firstFailedReason] : 'Unknown';
+      }
+    },
     { 
       key: "matchPercentage", 
       label: "Match %"
@@ -534,7 +604,7 @@ const DashboardPage: FC = () => {
       label: "Create Pairing",
       onClick: (row: User) => handlePairClick(row)
     }
-  ], [allTracks, editableTrackRows, trackSelection, potentialMatches, handlePairWithTrack, handlePairClick]);
+  ], [allTracks, editableTrackRows, potentialMatches, handlePairWithTrack, handlePairClick, showOnlyMatching]);
 
   return (
     <WixDesignSystemProvider features={{ newColorsBranding: true }}>
@@ -618,17 +688,37 @@ const DashboardPage: FC = () => {
                 </Box>
                 <Box>
                   {selectedUser ? (
-                    <GenericTable
-                      columns={matchColumns}
-                      data={matchesPaginatedData}
-                      total={matchesFilteredData.length}
-                      loading={false}
-                      onSearch={handleMatchesSearch}
-                      onRowClick={handleMatchRowClick}
-                      currentPage={matchesCurrentPage}
-                      onPageChange={handleMatchesPageChange}
-                      pageSize={matchesPageSize}
-                    />
+                    <>
+                      {noMatchInsight ? (
+                        <Box marginBottom="16px">
+                          <div className="match-insight-card">
+                            <div className="match-insight-title">Blocking reasons</div>
+                            <div className="match-insight-subtitle">
+                              Checked {noMatchInsight.checkedCount} candidates for {selectedUser.fullName}. Each candidate is counted once by its first blocking rule.
+                            </div>
+                            <div className="match-insight-list">
+                              {noMatchInsight.topReasons.map((item) => (
+                                <div key={item.reason} className="match-insight-item">
+                                  <span className="match-insight-label">{FAILURE_REASON_LABELS[item.reason]}</span>
+                                  <span className="match-insight-value">{item.count} blocked ({item.percent}%)</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </Box>
+                      ) : null}
+                      <GenericTable
+                        columns={matchColumns}
+                        data={matchesPaginatedData}
+                        total={matchesFilteredData.length}
+                        loading={false}
+                        onSearch={handleMatchesSearch}
+                        onRowClick={handleMatchRowClick}
+                        currentPage={matchesCurrentPage}
+                        onPageChange={handleMatchesPageChange}
+                        pageSize={matchesPageSize}
+                      />
+                    </>
                   ) : (
                     <Box padding="20px" align="center">
                       Select a user to see potential matches
