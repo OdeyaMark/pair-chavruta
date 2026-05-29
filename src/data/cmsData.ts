@@ -326,6 +326,10 @@ function sortChavrutasByCreationDateDesc(chavrutas: Chavruta[]): Chavruta[] {
   );
 }
 
+function isChavrutaDeleted(chavruta: Chavruta): boolean {
+  return chavruta.isDeleted === true || chavruta.IsDeleted === true;
+}
+
 /**
  * Fetches all active chavrutas from CMS
  */
@@ -334,13 +338,13 @@ export async function fetchChavrutasFromCMS(): Promise<Chavruta[]> {
     const results = await items
       .query(COLLECTION_NAMES.CHAVRUTAS)
       .descending('dateOfCreate')
-      .ne('isDeleted', true)
       .include('newFromIsraelId', 'newFromWorldId')
       .limit(QUERY_LIMIT)
       .find();
     
     consola.info("Fetched chavrutas", results);
-    return sortChavrutasByCreationDateDesc(results.items as Chavruta[]);
+    const nonDeletedItems = (results.items as Chavruta[]).filter(chavruta => !isChavrutaDeleted(chavruta));
+    return sortChavrutasByCreationDateDesc(nonDeletedItems);
   } catch (error) {
     consola.error('Error fetching chavrutas:', error);
     throw error;
@@ -355,13 +359,13 @@ export async function fetchPendingChavrutasFromCMS(): Promise<Chavruta[]> {
     const results = await items
       .query(COLLECTION_NAMES.CHAVRUTAS)
       .descending('dateOfCreate')
-      .ne('isDeleted', true)
       .eq('status', ChavrutaStatus.Standby)
       .include('newFromIsraelId', 'newFromWorldId')
       .limit(QUERY_LIMIT)
       .find();
     
-    return sortChavrutasByCreationDateDesc(results.items as Chavruta[]);
+    const nonDeletedItems = (results.items as Chavruta[]).filter(chavruta => !isChavrutaDeleted(chavruta));
+    return sortChavrutasByCreationDateDesc(nonDeletedItems);
   } catch (error) {
     consola.error('Error fetching pending chavrutas:', error);
     throw error;

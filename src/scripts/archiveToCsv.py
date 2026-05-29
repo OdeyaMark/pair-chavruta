@@ -12,8 +12,11 @@ def export_combined_csv():
     """
     
     # MongoDB connection configuration
-    MONGO_URI = "mongodb+srv://NoamShushan:whDhb2wbWgwdOVKt@cluster0.l83mq.mongodb.net/Shalhevet?retryWrites=true&w=majority"  # Change this to your MongoDB URI
-    DATABASE_NAME = "Shalhevet"      # Change this to your database name
+    MONGO_URI = os.getenv("MONGO_URI")
+    DATABASE_NAME = os.getenv("MONGO_DATABASE", "Shalhevet")
+
+    if not MONGO_URI:
+        raise ValueError("Missing MONGO_URI environment variable")
     
     try:
         # Connect to MongoDB
@@ -35,12 +38,10 @@ def export_combined_csv():
             print(f"Processing collection: {collection_name}")
             
             collection = db[collection_name]
-            print(collection)
             
             # Find documents where IsInArchive is True
             cursor = collection.find(query_filter)
             documents = list(cursor)
-            print(documents)
             
             # Add source collection info to each document
             for doc in documents:
@@ -85,5 +86,6 @@ def export_combined_csv():
 if __name__ == "__main__":
     print("MongoDB to CSV Export Tool")
     print("=" * 40)
+    print("Set MONGO_URI in your environment before running this script")
     
     export_combined_csv()
