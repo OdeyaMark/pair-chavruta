@@ -1,5 +1,10 @@
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('matchLogic');
+
 interface User {
   _id: string;
+  fullName?: string;
   country: string;
   gender: string;
   prefGender?: string;
@@ -18,6 +23,20 @@ interface User {
   thursday?: { morning: boolean; noon: boolean; evening: boolean; lateNight: boolean; };
   matchTo?: number;
   prefNumberOfMatches?: number;
+}
+
+export type MatchFailureReason =
+  | 'country'
+  | 'gender'
+  | 'english'
+  | 'tracks'
+  | 'time'
+  | 'limit';
+
+export interface MatchCompatibilityAnalysis {
+  isCompatible: boolean;
+  firstFailedReason: MatchFailureReason | null;
+  failedReasons: MatchFailureReason[];
 }
 
 const TIME_SLOTS = {
@@ -75,6 +94,48 @@ export function checkUserCompatibility(sourceUser: User, potentialPair: User): b
   }
 
   return true;
+}
+
+export function analyzeMatchCompatibility(
+  sourceUser: User,
+  potentialPair: User
+): MatchCompatibilityAnalysis {
+  const failedReasons: MatchFailureReason[] = [];
+
+  if (!checkCountryCompatibility(sourceUser, potentialPair)) {
+    failedReasons.push('country');
+  }
+
+  if (!checkGenderCompatibility(
+    sourceUser.gender,
+    sourceUser.prefGender,
+    potentialPair.gender,
+    potentialPair.prefGender
+  )) {
+    failedReasons.push('gender');
+  }
+
+  if (!checkEnglishLevelCompatibility(sourceUser, potentialPair)) {
+    failedReasons.push('english');
+  }
+
+  if (!checkTrackCompatibility(sourceUser, potentialPair)) {
+    failedReasons.push('tracks');
+  }
+
+  if (!checkLearningTimeCompatibility(sourceUser, potentialPair)) {
+    failedReasons.push('time');
+  }
+
+  if (!checkMatchingLimitCompatibility(potentialPair)) {
+    failedReasons.push('limit');
+  }
+
+  return {
+    isCompatible: failedReasons.length === 0,
+    firstFailedReason: failedReasons[0] ?? null,
+    failedReasons,
+  };
 }
 
 /**
@@ -142,7 +203,7 @@ export function checkGenderCompatibility(
     }
   }
 
-  console.log('✅ Gender compatibility passed');
+  logger.debug('✅ Gender compatibility passed');
   return true;
 }
 
@@ -258,10 +319,10 @@ export function checkTrackCompatibility(sourceUser: User, potentialPair: User): 
     return true;
   }
   if (!Array.isArray(sourceUser.prefTracks)){
-    console.log("source user preferred tracks is not an array:", sourceUser._id, sourceUser.prefTracks);
+    logger.debug("source user preferred tracks is not an array:", sourceUser._id, sourceUser.prefTracks);
   }
   if (!Array.isArray(potentialPair.prefTracks)){
-    console.log("potential pair preferred tracks is not an array:", potentialPair._id, potentialPair.prefTracks);
+    logger.debug("potential pair preferred tracks is not an array:", potentialPair._id, potentialPair.prefTracks);
   }
 
   // Check if there's any intersection between the track arrays
@@ -292,7 +353,7 @@ export function parseUtcOffset(utcOffset: string | number): number {
   }
 
   // Default to 0 if parsing fails
-  console.warn('Failed to parse UTC offset:', utcOffset, 'defaulting to 2');
+  logger.warn('Failed to parse UTC offset:', utcOffset, 'defaulting to 2');
   return 2; // default to Israel time zone UTC+2
 }
 
@@ -303,9 +364,10 @@ export function convertTimeSlotesToHours(user: User): Record<string, number[]> {
   const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday'];
   const timeSlots = ['Morning', 'Noon', 'Evening', 'lateNight'] as const;
   const result: Record<string, number[]> = {};
+  const scheduleUser = user as User & Record<string, unknown>;
 
   for (const day of days) {
-    if (!user[day]) continue;
+    if (!scheduleUser[day]) continue;
 
     const availableHours: number[] = [];
 
@@ -313,14 +375,14 @@ export function convertTimeSlotesToHours(user: User): Record<string, number[]> {
       // Handle both boolean and array formats for time availability
       let isAvailable = false;
       
-      if (typeof user[day] === 'object') {
-        if (Array.isArray(user[day])) {
+      if (typeof scheduleUser[day] === 'object') {
+        if (Array.isArray(scheduleUser[day])) {
           // Array format: check if slot name is in arra
           const slotToCheck = timeSlot === 'lateNight' ? 'Late night' : timeSlot;
-          isAvailable = user[day].includes(slotToCheck);
+          isAvailable = (scheduleUser[day] as string[]).includes(slotToCheck);
         } else {
           // Object format: check boolean property
-          isAvailable = user[day][timeSlot] === true;
+          isAvailable = Boolean((scheduleUser[day] as Record<string, boolean>)[timeSlot]);
         }
       }
 
@@ -443,61 +505,61 @@ function checkLearningTimeCompatibility(sourceUser: User, potentialPair: User): 
  * Enhanced debugging function for the new hour-based approach
  */
 function checkLearningTimeCompatibilityDebug(sourceUser: User, potentialPair: User): boolean {
-  console.log('\n=== DETAILED LEARNING TIME COMPATIBILITY DEBUG (HOUR-BASED) ===');
+  logger.debug('\n=== DETAILED LEARNING TIME COMPATIBILITY DEBUG (HOUR-BASED) ===');
   
-  console.log('Source UTC Offset (raw):', sourceUser.utcOffset);
-  console.log('Pair UTC Offset (raw):', potentialPair.utcOffset);
+  logger.debug('Source UTC Offset (raw):', sourceUser.utcOffset);
+  logger.debug('Pair UTC Offset (raw):', potentialPair.utcOffset);
   
   // Parse UTC offsets
   const sourceOffset = parseUtcOffset(sourceUser.utcOffset);
   const pairOffset = parseUtcOffset(potentialPair.utcOffset);
   const timezoneOffset = pairOffset - sourceOffset;
   
-  console.log('Source UTC Offset (parsed):', sourceOffset);
-  console.log('Pair UTC Offset (parsed):', pairOffset);
-  console.log('Timezone difference:', timezoneOffset, 'hours');
+  logger.debug('Source UTC Offset (parsed):', sourceOffset);
+  logger.debug('Pair UTC Offset (parsed):', pairOffset);
+  logger.debug('Timezone difference:', timezoneOffset, 'hours');
 
   // Step 1: Convert both users' time slots to hours
-  console.log('\n--- STEP 1: Converting time slots to hours ---');
+  logger.debug('\n--- STEP 1: Converting time slots to hours ---');
   const sourceHours = convertTimeSlotesToHours(sourceUser);
   const pairHours = convertTimeSlotesToHours(potentialPair);
   
-  console.log('Source user available hours by day:');
+  logger.debug('Source user available hours by day:');
   for (const [day, hours] of Object.entries(sourceHours)) {
-    console.log(`  ${day}: ${hours.join(', ')}`);
+    logger.debug(`  ${day}: ${hours.join(', ')}`);
   }
   
-  console.log('Pair user available hours by day:');
+  logger.debug('Pair user available hours by day:');
   for (const [day, hours] of Object.entries(pairHours)) {
-    console.log(`  ${day}: ${hours.join(', ')}`);
+    logger.debug(`  ${day}: ${hours.join(', ')}`);
   }
 
   // Step 2: Convert source user's hours to pair's timezone
-  console.log('\n--- STEP 2: Converting source hours to pair\'s timezone ---');
+  logger.debug('\n--- STEP 2: Converting source hours to pair\'s timezone ---');
   const sourceHoursInPairTimezone = convertHoursToTargetTimezone(sourceHours, timezoneOffset);
   
-  console.log('Source user hours converted to pair\'s timezone:');
+  logger.debug('Source user hours converted to pair\'s timezone:');
   for (const [day, hours] of Object.entries(sourceHoursInPairTimezone)) {
-    console.log(`  ${day}: ${hours.join(', ')}`);
+    logger.debug(`  ${day}: ${hours.join(', ')}`);
   }
 
   // Step 3: Find overlapping hours
-  console.log('\n--- STEP 3: Finding overlapping hours ---');
+  logger.debug('\n--- STEP 3: Finding overlapping hours ---');
   const overlappingHours = findOverlappingHours(sourceHoursInPairTimezone, pairHours);
   
-  console.log('Overlapping hours by day:');
+  logger.debug('Overlapping hours by day:');
   let totalOverlaps = 0;
   for (const [day, hours] of Object.entries(overlappingHours)) {
-    console.log(`  ${day}: ${hours.join(', ')} (${hours.length} hours)`);
+    logger.debug(`  ${day}: ${hours.join(', ')} (${hours.length} hours)`);
     totalOverlaps += hours.length;
   }
 
   const hasOverlap = Object.keys(overlappingHours).length > 0;
   
-  console.log('\n=== SUMMARY ===');
-  console.log(`Total overlapping hours: ${totalOverlaps}`);
-  console.log(`Days with overlaps: ${Object.keys(overlappingHours).length}`);
-  console.log(`Final result: ${hasOverlap ? '✅ COMPATIBLE' : '❌ NOT COMPATIBLE'}`);
+  logger.debug('\n=== SUMMARY ===');
+  logger.debug(`Total overlapping hours: ${totalOverlaps}`);
+  logger.debug(`Days with overlaps: ${Object.keys(overlappingHours).length}`);
+  logger.debug(`Final result: ${hasOverlap ? '✅ COMPATIBLE' : '❌ NOT COMPATIBLE'}`);
   
   return hasOverlap;
 }
@@ -637,93 +699,93 @@ export function checkLearningStyleCompatibility(sourceUser: User, potentialMatch
  * Debug version of checkUserCompatibility with detailed logging
  */
 export function checkUserCompatibilityDebug(sourceUser: User, potentialPair: User): boolean {
-  console.log('\n=== COMPATIBILITY CHECK ===');
-  console.log('Source User:', sourceUser._id, sourceUser.fullName || 'Unknown');
-  console.log('Potential Pair:', potentialPair._id, potentialPair.fullName || 'Unknown');
+  logger.debug('\n=== COMPATIBILITY CHECK ===');
+  logger.debug('Source User:', sourceUser._id, sourceUser.fullName || 'Unknown');
+  logger.debug('Potential Pair:', potentialPair._id, potentialPair.fullName || 'Unknown');
 
   // 1. Check country compatibility
-  console.log('\n1. COUNTRY COMPATIBILITY:');
-  console.log('Source country:', sourceUser.country);
-  console.log('Pair country:', potentialPair.country);
+  logger.debug('\n1. COUNTRY COMPATIBILITY:');
+  logger.debug('Source country:', sourceUser.country);
+  logger.debug('Pair country:', potentialPair.country);
   const countryCompatible = checkCountryCompatibility(sourceUser, potentialPair);
-  console.log('Country compatible:', countryCompatible);
+  logger.debug('Country compatible:', countryCompatible);
   if (!countryCompatible) {
-    console.log('❌ FAILED: Country compatibility');
+    logger.debug('❌ FAILED: Country compatibility');
     return false;
   }
 
   // 2. Check gender compatibility
-  console.log('\n2. GENDER COMPATIBILITY:');
-  console.log('Source gender:', sourceUser.gender, 'prefers:', sourceUser.prefGender);
-  console.log('Pair gender:', potentialPair.gender, 'prefers:', potentialPair.prefGender);
+  logger.debug('\n2. GENDER COMPATIBILITY:');
+  logger.debug('Source gender:', sourceUser.gender, 'prefers:', sourceUser.prefGender);
+  logger.debug('Pair gender:', potentialPair.gender, 'prefers:', potentialPair.prefGender);
   const genderCompatible = checkGenderCompatibility(
     sourceUser.gender,
     sourceUser.prefGender,
     potentialPair.gender,
     potentialPair.prefGender
   );
-  console.log('Gender compatible:', genderCompatible);
+  logger.debug('Gender compatible:', genderCompatible);
   if (!genderCompatible) {
-    console.log('❌ FAILED: Gender compatibility');
+    logger.debug('❌ FAILED: Gender compatibility');
     return false;
   }
 
   // 3. Check learning skill compatibility (commented out in main function)
-  // console.log('\n3. LEARNING SKILL COMPATIBILITY:');
-  // console.log('Source skill:', sourceUser.skillLevel, 'desired:', sourceUser.desiredSkillLevel);
-  // console.log('Pair skill:', potentialPair.skillLevel, 'desired:', potentialPair.desiredSkillLevel);
+  // logger.debug('\n3. LEARNING SKILL COMPATIBILITY:');
+  // logger.debug('Source skill:', sourceUser.skillLevel, 'desired:', sourceUser.desiredSkillLevel);
+  // logger.debug('Pair skill:', potentialPair.skillLevel, 'desired:', potentialPair.desiredSkillLevel);
   // const skillCompatible = checkLearningSkillCompatibility(sourceUser, potentialPair);
-  // console.log('Skill compatible:', skillCompatible);
+  // logger.debug('Skill compatible:', skillCompatible);
   // if (!skillCompatible) {
-  //   console.log('❌ FAILED: Learning skill compatibility');
+  //   logger.debug('❌ FAILED: Learning skill compatibility');
   //   return false;
   // }
 
   // 4. Check English level compatibility
-  console.log('\n4. ENGLISH LEVEL COMPATIBILITY:');
-  console.log('Source English:', sourceUser.englishLevel, 'desired:', sourceUser.desiredEnglishLevel);
-  console.log('Pair English:', potentialPair.englishLevel, 'desired:', potentialPair.desiredEnglishLevel);
+  logger.debug('\n4. ENGLISH LEVEL COMPATIBILITY:');
+  logger.debug('Source English:', sourceUser.englishLevel, 'desired:', sourceUser.desiredEnglishLevel);
+  logger.debug('Pair English:', potentialPair.englishLevel, 'desired:', potentialPair.desiredEnglishLevel);
   const englishCompatible = checkEnglishLevelCompatibility(sourceUser, potentialPair);
-  console.log('English compatible:', englishCompatible);
+  logger.debug('English compatible:', englishCompatible);
   if (!englishCompatible) {
-    console.log('❌ FAILED: English level compatibility');
+    logger.debug('❌ FAILED: English level compatibility');
     return false;
   }
 
   // 5. Check track compatibility
-  console.log('\n5. TRACK COMPATIBILITY:');
-  console.log('Source tracks:', sourceUser.prefTracks);
-  console.log('Pair tracks:', potentialPair.prefTracks);
+  logger.debug('\n5. TRACK COMPATIBILITY:');
+  logger.debug('Source tracks:', sourceUser.prefTracks);
+  logger.debug('Pair tracks:', potentialPair.prefTracks);
   const trackCompatible = checkTrackCompatibility(sourceUser, potentialPair);
-  console.log('Track compatible:', trackCompatible);
+  logger.debug('Track compatible:', trackCompatible);
   if (!trackCompatible) {
-    console.log('❌ FAILED: Track compatibility');
+    logger.debug('❌ FAILED: Track compatibility');
     return false;
   }
 
   // 6. Check learning time compatibility - USE DEBUG VERSION
-  console.log('\n6. LEARNING TIME COMPATIBILITY:');
+  logger.debug('\n6. LEARNING TIME COMPATIBILITY:');
   const timeCompatible = checkLearningTimeCompatibilityDebug(sourceUser, potentialPair);
   if (!timeCompatible) {
-    console.log('❌ FAILED: Learning time compatibility');
+    logger.debug('❌ FAILED: Learning time compatibility');
     return false;
   }
 
   // 7. Check matching limit compatibility
-  console.log('\n7. MATCHING LIMIT COMPATIBILITY:');
-  console.log('Pair matchTo:', potentialPair.matchTo, 'prefNumberOfMatches:', potentialPair.prefNumberOfMatches);
+  logger.debug('\n7. MATCHING LIMIT COMPATIBILITY:');
+  logger.debug('Pair matchTo:', potentialPair.matchTo, 'prefNumberOfMatches:', potentialPair.prefNumberOfMatches);
   const limitCompatible = checkMatchingLimitCompatibility(potentialPair);
-  console.log('Limit compatible:', limitCompatible);
+  logger.debug('Limit compatible:', limitCompatible);
   if (!limitCompatible) {
-    console.log('❌ FAILED: Matching limit compatibility');
+    logger.debug('❌ FAILED: Matching limit compatibility');
     return false;
   }
 
   // 8. Calculate and display match percentage
-  console.log('\n8. MATCH PERCENTAGE:');
+  logger.debug('\n8. MATCH PERCENTAGE:');
   const matchPercentage = calculateMatchPercentage(sourceUser, potentialPair);
-  console.log('Match percentage:', matchPercentage + '%');
+  logger.debug('Match percentage:', matchPercentage + '%');
 
-  console.log('\n✅ ALL CHECKS PASSED!');
+  logger.debug('\n✅ ALL CHECKS PASSED!');
   return true;
 }

@@ -8,6 +8,9 @@ import {
   type Question, 
   type LearningTimes 
 } from '../data/formatters';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('UserCard');
 
 const LabelValueSection = React.memo<{ 
   title: string; 
@@ -38,7 +41,7 @@ const UserCard = React.memo<UserCardProps>(({ user }) => {
     const loadData = async () => {
       const data = await formatUserData(user);
       setCardData(data);
-      console.log("formatted data", data);
+      logger.debug("formatted data", data);
     };
     loadData();
   }, [user]);

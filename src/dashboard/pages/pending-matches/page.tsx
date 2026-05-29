@@ -5,13 +5,20 @@ import { GenericTable } from '../../../components/GenericTable';
 import { fetchPendingChavrutasFromCMS, deleteChavrutaAndUpdateUsers } from '../../../data/cmsData';
 import { PreferredTracksInfo } from '../../../constants/tracks';
 import { dashboard } from '@wix/dashboard';
+import { MODAL_IDS } from '../../../constants/modals';
+import { createLogger } from '../../../utils/logger';
+import { useTablePagination } from '../../../hooks/useTablePagination';
+import { useTableSearch } from '../../../hooks/useTableSearch';
+
+const logger = createLogger('pending-matches-page');
 
 // Interface for the pending match data
 interface PendingMatch {
   id: string;
   israeliParticipant: string;
   diasporaParticipant: string;
-  track: string;
+  trackName: string;
+  trackId: string;
   israeliId: string;
   diasporaId: string;
   israeliName: string;
@@ -22,9 +29,11 @@ const DashboardPage: FC = () => {
   // Single source of truth for pending matches data
   const [pendingMatches, setPendingMatches] = useState<PendingMatch[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 10;
+  const { debouncedSearchTerm, handleSearchChange } = useTableSearch();
+  const { currentPage, pageSize, setCurrentPage, paginate } = useTablePagination({
+    pageSize: 10,
+    resetDependencies: [debouncedSearchTerm]
+  });
 
   // Fetch data once on component mount
   useEffect(() => {
@@ -34,7 +43,7 @@ const DashboardPage: FC = () => {
   const fetchInitialData = async () => {
     try {
       setLoading(true);
-      console.log('Fetching pending matches data...');
+      logger.debug('Fetching pending matches data...');
       const chavrutas = await fetchPendingChavrutasFromCMS();
       
       const formattedMatches = chavrutas.map(chavruta => {
@@ -45,7 +54,8 @@ const DashboardPage: FC = () => {
           id: chavruta._id,
           israeliParticipant: chavruta.newFromIsraelId?.fullName || 'Unknown',
           diasporaParticipant: chavruta.newFromWorldId?.fullName || 'Unknown',
-          track: track?.trackEn || 'Unknown Track',
+          trackName: track?.trackEn || 'Unknown Track',
+          trackId: chavruta.track || '',
           israeliId: chavruta.newFromIsraelId?._id || '',
           diasporaId: chavruta.newFromWorldId?._id || '',
           israeliName: chavruta.newFromIsraelId?.fullName || 'Unknown',
@@ -55,70 +65,58 @@ const DashboardPage: FC = () => {
 
       setPendingMatches(formattedMatches);
       setLoading(false);
-      console.log('Pending matches loaded:', formattedMatches.length, 'items');
+      logger.debug('Pending matches loaded:', formattedMatches.length, 'items');
     } catch (error) {
-      console.error('Error fetching pending matches:', error);
+      logger.error('Error fetching pending matches:', error);
       setLoading(false);
     }
   };
 
   // Add handler for page change
   const handlePageChange = useCallback((page: number) => {
-    console.log("Page changed to:", page);
+    logger.debug("Page changed to:", page);
     setCurrentPage(page);
   }, []);
 
   // Add handler for search
-  const handleSearchChange = useCallback((search: string) => {
-    setSearchTerm(search);
-    setCurrentPage(1); // Reset to page 1 on new search
-  }, []);
-
   // Computed filtered and paginated data
   const displayData = useMemo(() => {
-    let filtered = pendingMatches;
+    let filtered = [...pendingMatches];
 
     // Apply search filter
-    if (searchTerm) {
-      const search = searchTerm.toLowerCase();
+    if (debouncedSearchTerm) {
+      const search = debouncedSearchTerm.toLowerCase();
       filtered = pendingMatches.filter(match =>
         match.israeliParticipant.toLowerCase().includes(search) ||
         match.diasporaParticipant.toLowerCase().includes(search) 
       );
     }
 
-    // Apply pagination
-    const startIdx = (currentPage - 1) * pageSize;
-    const paginatedData = filtered.slice(startIdx, startIdx + pageSize);
+    const paginatedData = paginate(filtered);
 
     return {
       data: paginatedData,
       total: filtered.length
     };
-  }, [pendingMatches, searchTerm, currentPage]);
+  }, [pendingMatches, debouncedSearchTerm, paginate]);
 
   // Event handlers that update the single source of truth
   const handleActivate = useCallback(async (row: PendingMatch) => {
-    console.log('Activating pair with ID:', row.id);
+    logger.debug('Activating pair with ID:', row.id);
 
-    dashboard.openModal({
-      modalId: '66aac142-762d-4489-a349-94be53e515c4',
+    await dashboard.openModal({
+      modalId: MODAL_IDS.ACTIVATE_PAIR,
       params: { 
         chavrutaId: row.id,
         sourceUserId: row.israeliId,
         sourceUserName: row.israeliName,
         targetUserId: row.diasporaId,
         targetUserName: row.diasporaName,
-        trackId: row.track,
-        trackName: row.track
+        trackId: row.trackId,
+        trackName: row.trackName,
+        onActivated: fetchInitialData,
       },
     });
-
-    // Refresh data after activation
-    setTimeout(async () => {
-      console.log('Refreshing data after activation...');
-      await fetchInitialData();
-    }, 1000);
   }, []);
 
   const handleDiscard = useCallback(async (row: PendingMatch) => {
@@ -130,7 +128,7 @@ const DashboardPage: FC = () => {
     if (!confirmed) return;
 
     try {
-      console.log('Discarding pending match:', row.id);
+      logger.debug('Discarding pending match:', row.id);
       
       // Optimistic update - remove from UI immediately
       setPendingMatches(prev => prev.filter(match => match.id !== row.id));
@@ -144,7 +142,7 @@ const DashboardPage: FC = () => {
       });
 
     } catch (error) {
-      console.error('Error discarding match:', error);
+      logger.error('Error discarding match:', error);
       // Revert optimistic update on error
       await fetchInitialData();
       
@@ -159,7 +157,7 @@ const DashboardPage: FC = () => {
   const columns = useMemo(() => [
     { key: "israeliParticipant", label: "Israeli Participant" },
     { key: "diasporaParticipant", label: "Diaspora Participant" },
-    { key: "track", label: "Track" },
+    { key: "trackName", label: "Track" },
     {
       key: "activate",
       label: "activate",

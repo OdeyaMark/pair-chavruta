@@ -6,7 +6,16 @@ import { createNewPairInDatabase, fetchMatchData, getTracks } from '../../../dat
 import { Eye, Handshake } from 'lucide-react';
 import { dashboard } from '@wix/dashboard';
 import '../../../styles/matches.css';
-import { checkUserCompatibilityDebug, calculateMatchPercentage } from '../../../data/matchLogic';
+import {
+  analyzeMatchCompatibility,
+  calculateMatchPercentage,
+  type MatchFailureReason,
+} from '../../../data/matchLogic';
+import { MODAL_IDS } from '../../../constants/modals';
+import { useTablePagination } from '../../../hooks/useTablePagination';
+import { createLogger } from '../../../utils/logger';
+
+const logger = createLogger('matches-page');
 
 
 interface User {
@@ -33,7 +42,18 @@ interface User {
   commonTracks?: string[];
   havrutaFound?: boolean;
   isCompatible?: boolean;
+  firstFailedReason?: MatchFailureReason | null;
+  failedReasons?: MatchFailureReason[];
 }
+
+const FAILURE_REASON_LABELS: Record<MatchFailureReason, string> = {
+  country: 'Country rule',
+  gender: 'Gender preference mismatch',
+  english: 'English level mismatch',
+  tracks: 'No shared track',
+  time: 'No time overlap',
+  limit: 'Match limit reached',
+};
 
 const DashboardPage: FC = () => {
   // Single source of truth for data
@@ -49,10 +69,25 @@ const DashboardPage: FC = () => {
   const [matchSearchTerm, setMatchSearchTerm] = useState('');
   
   // Pagination state - separate for each table
-  const [usersCurrentPage, setUsersCurrentPage] = useState(1);
-  const [matchesCurrentPage, setMatchesCurrentPage] = useState(1);
-  const usersPageSize = 10;
-  const matchesPageSize = 10;
+  const {
+    currentPage: usersCurrentPage,
+    pageSize: usersPageSize,
+    setCurrentPage: setUsersCurrentPage,
+    paginate: paginateUsers
+  } = useTablePagination({
+    pageSize: 10,
+    resetDependencies: [showAllUsers, searchTerm]
+  });
+
+  const {
+    currentPage: matchesCurrentPage,
+    pageSize: matchesPageSize,
+    setCurrentPage: setMatchesCurrentPage,
+    paginate: paginateMatches
+  } = useTablePagination({
+    pageSize: 10,
+    resetDependencies: [showOnlyMatching, matchSearchTerm, selectedUser]
+  });
   
   const [trackSelection, setTrackSelection] = useState<{[key: string]: string}>({});
   const [allTracks, setAllTracks] = useState<Array<{id: number, trackEn: string}>>([]);
@@ -63,20 +98,10 @@ const DashboardPage: FC = () => {
     fetchInitialData();
   }, []);
 
-  // Reset users page when filters change
-  useEffect(() => {
-    setUsersCurrentPage(1);
-  }, [showAllUsers, searchTerm]);
-
-  // Reset matches page when filters change
-  useEffect(() => {
-    setMatchesCurrentPage(1);
-  }, [showOnlyMatching, matchSearchTerm, selectedUser]);
-
   const fetchInitialData = async () => {
     try {
       setLoading(true);
-      console.log('Fetching initial data...');
+      logger.debug('Fetching initial data...');
       const [userData, tracksData] = await Promise.all([
         fetchMatchData(),
         getTracks()
@@ -109,9 +134,9 @@ const DashboardPage: FC = () => {
 
       setAllUsers(formattedUsers);
       setLoading(false);
-      console.log('Users loaded:', formattedUsers.length, 'items');
+      logger.debug('Users loaded:', formattedUsers.length, 'items');
     } catch (error) {
-      console.error('Error fetching initial data:', error);
+      logger.error('Error fetching initial data:', error);
       setLoading(false);
     }
   };
@@ -137,10 +162,8 @@ const DashboardPage: FC = () => {
 
   // Computed paginated data for users table
   const usersPaginatedData = useMemo(() => {
-    const startIndex = (usersCurrentPage - 1) * usersPageSize;
-    const endIndex = startIndex + usersPageSize;
-    return usersFilteredData.slice(startIndex, endIndex);
-  }, [usersFilteredData, usersCurrentPage, usersPageSize]);
+    return paginateUsers(usersFilteredData);
+  }, [usersFilteredData, paginateUsers]);
 
   // Computed filtered data for matches table
   const matchesFilteredData = useMemo(() => {
@@ -166,37 +189,74 @@ const DashboardPage: FC = () => {
 
   // Computed paginated data for matches table
   const matchesPaginatedData = useMemo(() => {
-    const startIndex = (matchesCurrentPage - 1) * matchesPageSize;
-    const endIndex = startIndex + matchesPageSize;
-    return matchesFilteredData.slice(startIndex, endIndex);
-  }, [matchesFilteredData, matchesCurrentPage, matchesPageSize]);
+    return paginateMatches(matchesFilteredData);
+  }, [matchesFilteredData, paginateMatches]);
+
+  const noMatchInsight = useMemo(() => {
+    if (!selectedUser || potentialMatches.length === 0) {
+      return null;
+    }
+
+    const compatibleCount = potentialMatches.filter(match => match.isCompatible).length;
+    if (compatibleCount > 0) {
+      return null;
+    }
+
+    const failureCounts = potentialMatches.reduce<Record<MatchFailureReason, number>>((accumulator, match) => {
+      if (match.firstFailedReason) {
+        accumulator[match.firstFailedReason] += 1;
+      }
+
+      return accumulator;
+    }, {
+      country: 0,
+      gender: 0,
+      english: 0,
+      tracks: 0,
+      time: 0,
+      limit: 0,
+    });
+
+    const topReasons = Object.entries(failureCounts)
+      .filter(([, count]) => count > 0)
+      .sort((left, right) => right[1] - left[1])
+      .slice(0, 3)
+      .map(([reason, count]) => ({
+        reason: reason as MatchFailureReason,
+        count,
+        percent: Math.round((count / potentialMatches.length) * 100),
+      }));
+
+    return {
+      checkedCount: potentialMatches.length,
+      topReasons,
+    };
+  }, [selectedUser, potentialMatches]);
 
   // Pagination handlers - separate for each table
   const handleUsersPageChange = useCallback((page: number) => {
-    console.log("Users page changed to:", page);
+    logger.debug("Users page changed to:", page);
     setUsersCurrentPage(page);
   }, []);
 
   const handleMatchesPageChange = useCallback((page: number) => {
-    console.log("Matches page changed to:", page);
+    logger.debug("Matches page changed to:", page);
     setMatchesCurrentPage(page);
   }, []);
 
   // Search handlers - separate for each table
   const handleUsersSearch = useCallback((search: string) => {
     setSearchTerm(search);
-    setUsersCurrentPage(1); // Reset to page 1 on search
   }, []);
 
   const handleMatchesSearch = useCallback((search: string) => {
     setMatchSearchTerm(search);
-    setMatchesCurrentPage(1); // Reset to page 1 on search
   }, []);
 
   // Event handlers
   const handleUserDetailsClick = useCallback((row: User) => {
     dashboard.openModal({
-      modalId: '45308f7c-1309-42a3-8a0b-00611cab9ebe',
+      modalId: MODAL_IDS.USER_DETAILS,
       params: { userId: row.id }
     });
   }, []);
@@ -204,13 +264,12 @@ const DashboardPage: FC = () => {
   const handleMatchRowClick = useCallback((row: User) => {
     if (selectedUser && row) {
       dashboard.openModal({
-        modalId: 'f03b650d-46f9-43ce-92b0-9bba324c1a20',
+        modalId: MODAL_IDS.MATCHES,
         params: { 
           selectedUserId: selectedUser.id,
           matchUserId: row.id
         }
       });
-      //
     }
   }, [selectedUser]);
 
@@ -266,7 +325,8 @@ const DashboardPage: FC = () => {
         prefNumberOfMatches: user.prefNumberOfMatches
       };
 
-      const isCompatible = checkUserCompatibilityDebug(rawSelectedUser, rawPotentialMatch);
+      const compatibilityAnalysis = analyzeMatchCompatibility(rawSelectedUser, rawPotentialMatch);
+      const isCompatible = compatibilityAnalysis.isCompatible;
       const matchPercentage = isCompatible 
         ? calculateMatchPercentage(rawSelectedUser, rawPotentialMatch)
         : 0;
@@ -290,12 +350,14 @@ const DashboardPage: FC = () => {
         ...user,
         matchPercentage,
         commonTracks,
-        isCompatible
+        isCompatible,
+        firstFailedReason: compatibilityAnalysis.firstFailedReason,
+        failedReasons: compatibilityAnalysis.failedReasons,
       });
     }
 
-    console.log("All potential matches:", allMatches.length);
-    console.log("Compatible matches:", allMatches.filter(m => m.isCompatible).length);
+    logger.debug("All potential matches:", allMatches.length);
+    logger.debug("Compatible matches:", allMatches.filter(m => m.isCompatible).length);
     
     // Clear track selections and editable rows when selecting a new user
     setTrackSelection({});
@@ -308,17 +370,17 @@ const DashboardPage: FC = () => {
 
   const handlePairWithTrack = useCallback(async (matchId: string, trackName: string, trackId: string) => {
     if (!selectedUser) {
-      console.error('No user selected for pairing');
+      logger.error('No user selected for pairing');
       return;
     }
 
     const targetUser = potentialMatches.find(user => user.id === matchId);
     if (!targetUser) {
-      console.error('Target user not found');
+      logger.error('Target user not found');
       return;
     }
 
-    console.log("Selected user:", selectedUser.country, "Target user:", targetUser.country);
+    logger.debug("Selected user:", selectedUser.country, "Target user:", targetUser.country);
     
     // Determine who is Israeli and who is not based on country
     const isSelectedUserIsraeli = selectedUser.country?.toLowerCase() === 'israel';
@@ -348,7 +410,7 @@ const DashboardPage: FC = () => {
       targetUserName = targetUser.fullName;
     }
 
-    console.log(`Creating pair: ${sourceUserName} and ${targetUserName} for track: ${trackName} (ID: ${trackId})`);
+    logger.debug(`Creating pair: ${sourceUserName} and ${targetUserName} for track: ${trackName} (ID: ${trackId})`);
     
     try {
       await createNewPairInDatabase(sourceUserId, targetUserId, trackId);
@@ -374,7 +436,7 @@ const DashboardPage: FC = () => {
         type: 'success'
       });
     } catch (error) {
-      console.error('Error creating pair:', error);
+      logger.error('Error creating pair:', error);
       dashboard.showToast({
         message: 'Error creating pair. Please try again.',
         type: 'error'
@@ -385,7 +447,7 @@ const DashboardPage: FC = () => {
   const handlePairClick = useCallback((row: User) => {
     const targetUser = potentialMatches.find(user => user.id === row.id);
     if (!targetUser) {
-      console.log('Target user not found');
+      logger.debug('Target user not found');
       return;
     }
     
@@ -399,7 +461,7 @@ const DashboardPage: FC = () => {
       handlePairWithTrack(row.id, selectedTrack, trackId);
     } else {
       // No common tracks or multiple tracks - make the track column editable
-      console.log('Making row editable for track selection');
+      logger.debug('Making row editable for track selection');
       
       if (allTracks.length === 0) {
         dashboard.showToast({
@@ -438,6 +500,17 @@ const DashboardPage: FC = () => {
   const matchColumns = useMemo(() => [
     { key: "fullName", label: "Full Name" },
     { key: "country", label: "Country" },
+    {
+      key: "blocker",
+      label: "First Blocker",
+      render: (row: User) => {
+        if (row.isCompatible) {
+          return showOnlyMatching ? '' : 'Matchable';
+        }
+
+        return row.firstFailedReason ? FAILURE_REASON_LABELS[row.firstFailedReason] : 'Unknown';
+      }
+    },
     { 
       key: "matchPercentage", 
       label: "Match %"
@@ -479,7 +552,7 @@ const DashboardPage: FC = () => {
           options: options,
           onSelect: (rowId: string, value: string) => {
             if (!value || value === '') {
-              console.log('Empty value selected, ignoring');
+              logger.debug('Empty value selected, ignoring');
               return;
             }
             
@@ -489,7 +562,7 @@ const DashboardPage: FC = () => {
 
             const targetUser = potentialMatches.find(user => user.id === rowId);
             if (!targetUser) {
-              console.log('Target user not found');
+              logger.debug('Target user not found');
               return;
             }
 
@@ -531,7 +604,7 @@ const DashboardPage: FC = () => {
       label: "Create Pairing",
       onClick: (row: User) => handlePairClick(row)
     }
-  ], [allTracks, editableTrackRows, trackSelection, potentialMatches, handlePairWithTrack, handlePairClick]);
+  ], [allTracks, editableTrackRows, potentialMatches, handlePairWithTrack, handlePairClick, showOnlyMatching]);
 
   return (
     <WixDesignSystemProvider features={{ newColorsBranding: true }}>
@@ -615,17 +688,37 @@ const DashboardPage: FC = () => {
                 </Box>
                 <Box>
                   {selectedUser ? (
-                    <GenericTable
-                      columns={matchColumns}
-                      data={matchesPaginatedData}
-                      total={matchesFilteredData.length}
-                      loading={false}
-                      onSearch={handleMatchesSearch}
-                      onRowClick={handleMatchRowClick}
-                      currentPage={matchesCurrentPage}
-                      onPageChange={handleMatchesPageChange}
-                      pageSize={matchesPageSize}
-                    />
+                    <>
+                      {noMatchInsight ? (
+                        <Box marginBottom="16px">
+                          <div className="match-insight-card">
+                            <div className="match-insight-title">Blocking reasons</div>
+                            <div className="match-insight-subtitle">
+                              Checked {noMatchInsight.checkedCount} candidates for {selectedUser.fullName}. Each candidate is counted once by its first blocking rule.
+                            </div>
+                            <div className="match-insight-list">
+                              {noMatchInsight.topReasons.map((item) => (
+                                <div key={item.reason} className="match-insight-item">
+                                  <span className="match-insight-label">{FAILURE_REASON_LABELS[item.reason]}</span>
+                                  <span className="match-insight-value">{item.count} blocked ({item.percent}%)</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </Box>
+                      ) : null}
+                      <GenericTable
+                        columns={matchColumns}
+                        data={matchesPaginatedData}
+                        total={matchesFilteredData.length}
+                        loading={false}
+                        onSearch={handleMatchesSearch}
+                        onRowClick={handleMatchRowClick}
+                        currentPage={matchesCurrentPage}
+                        onPageChange={handleMatchesPageChange}
+                        pageSize={matchesPageSize}
+                      />
+                    </>
                   ) : (
                     <Box padding="20px" align="center">
                       Select a user to see potential matches

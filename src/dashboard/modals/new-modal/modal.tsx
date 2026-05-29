@@ -13,6 +13,10 @@ import UserCard from '../../../components/UserCard';
 import EditUserForm from '../../../components/EditUserForm';
 import { reverseFormatUserData, prepareDataForSaving } from '../../../data/formatters';
 import ContactPopup from '../../../components/contactPopup';
+import { createLogger } from '../../../utils/logger';
+import { useDashboardModalParams } from '../../../hooks/useDashboardModalParams';
+
+const logger = createLogger('new-modal');
 
 interface ModalParams {
   userId?: string;
@@ -37,20 +41,19 @@ const Modal: FC = () => {
   const [userData, setUserData] = useState<Record<string, any> | null>(null);
   const [editedData, setEditedData] = useState<Record<string, any> | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
+  const params = useDashboardModalParams<ModalParams>();
 
   React.useEffect(() => {
-    const observerResult = dashboard.observeState((params: ModalParams) => {
-      if (params) {
-        setModalState({
-          userId: params.userId || null,
-          editMode: Boolean(params.editMode),
-          contactMode: Boolean(params.contactMode)
-        });
-      }
-    });
+    if (!params) {
+      return;
+    }
 
-    return () => observerResult?.disconnect?.();
-  }, []);
+    setModalState({
+      userId: params.userId || null,
+      editMode: Boolean(params.editMode),
+      contactMode: Boolean(params.contactMode)
+    });
+  }, [params]);
 
   React.useEffect(() => {
     let isSubscribed = true;
@@ -66,7 +69,7 @@ const Modal: FC = () => {
           setUserData(data || null);
         }
       } catch (error) {
-        console.error("Error fetching user data:", error);
+        logger.error("Error fetching user data:", error);
         if (isSubscribed) {
           setUserData(null);
         }
@@ -90,7 +93,7 @@ const Modal: FC = () => {
         await saveUserChanges(dataToSave, modalState.userId);
         dashboard.closeModal();
       } catch (error) {
-        console.error('Error saving user data:', error);
+        logger.error('Error saving user data:', error);
       }
     } else {
       dashboard.closeModal();

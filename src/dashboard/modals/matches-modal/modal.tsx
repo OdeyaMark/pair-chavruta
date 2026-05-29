@@ -8,19 +8,14 @@ import '@wix/design-system/styles.global.css';
 import { width, height, title } from './modal.json';
 import MatchPopup from '../../../components/matchPopup';
 import { getUserById } from '../../../data/cmsData';
+import { createLogger } from '../../../utils/logger';
+import type { User as AppUser } from '../../../types';
+import { useDashboardModalParams } from '../../../hooks/useDashboardModalParams';
 
-interface User {
-  _id: string;
-  fullName: string;
-  country: string;
-  gender: string;
-  prefGender?: string;
-  englishLevel?: number;
-  desiredEnglishLevel?: number;
-  skillLevel?: number;
-  desiredSkillLevel?: number;
-  learningStyle?: number;
-  prefTracks?: number[];
+const logger = createLogger('matches-modal');
+
+interface User extends Omit<AppUser, 'prefTracks' | 'utcOffset'> {
+  prefTracks: number[];
   utcOffset: string | number;
   openQuestions?: {
     question: string;
@@ -44,16 +39,24 @@ const Modal: FC = () => {
   const [user2, setUser2] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const params = useDashboardModalParams<MatchModalParams>();
+
+  const normalizePrefTracks = (prefTracks?: AppUser['prefTracks']): number[] => {
+    if (!prefTracks) return [];
+
+    const normalized = prefTracks
+      .map(track => Number(track))
+      .filter(track => !Number.isNaN(track));
+
+    return normalized;
+  };
 
   useEffect(() => {
-    const observerResult = dashboard.observeState((params: MatchModalParams) => {
-      if (params?.selectedUserId && params?.matchUserId) {
-        console.log('Received match modal params:', params);
-        fetchUsers(params.selectedUserId, params.matchUserId);
-      }
-    });
-    return () => observerResult?.disconnect?.();
-  }, []);
+    if (params?.selectedUserId && params?.matchUserId) {
+      logger.debug('Received match modal params:', params);
+      fetchUsers(params.selectedUserId, params.matchUserId);
+    }
+  }, [params]);
 
   const fetchUsers = async (userId1: string, userId2: string) => {
     setLoading(true);
@@ -69,10 +72,18 @@ const Modal: FC = () => {
         return;
       }
 
-      setUser1(fetchedUser1);
-      setUser2(fetchedUser2);
+      setUser1({
+        ...fetchedUser1,
+        prefTracks: normalizePrefTracks(fetchedUser1.prefTracks),
+        utcOffset: fetchedUser1.utcOffset ?? 2,
+      });
+      setUser2({
+        ...fetchedUser2,
+        prefTracks: normalizePrefTracks(fetchedUser2.prefTracks),
+        utcOffset: fetchedUser2.utcOffset ?? 2,
+      });
     } catch (err) {
-      console.error('Error fetching users:', err);
+      logger.error('Error fetching users:', err);
       setError('Failed to load user data');
     } finally {
       setLoading(false);

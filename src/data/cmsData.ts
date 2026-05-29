@@ -309,6 +309,23 @@ export async function deleteUser(userId: string): Promise<void> {
 // Chavruta Operations
 // ============================================================================
 
+function getChavrutaCreationTimestamp(chavruta: Chavruta): number {
+  const rawDate = chavruta.dateOfCreate ?? chavruta.DateOfCreate;
+
+  if (!rawDate) {
+    return 0;
+  }
+
+  const parsedDate = Date.parse(rawDate);
+  return Number.isNaN(parsedDate) ? 0 : parsedDate;
+}
+
+function sortChavrutasByCreationDateDesc(chavrutas: Chavruta[]): Chavruta[] {
+  return [...chavrutas].sort(
+    (left, right) => getChavrutaCreationTimestamp(right) - getChavrutaCreationTimestamp(left)
+  );
+}
+
 /**
  * Fetches all active chavrutas from CMS
  */
@@ -316,14 +333,14 @@ export async function fetchChavrutasFromCMS(): Promise<Chavruta[]> {
   try {
     const results = await items
       .query(COLLECTION_NAMES.CHAVRUTAS)
-      .descending('DateOfCreate')
-      .ne('IsDeleted', true)
+      .descending('dateOfCreate')
+      .ne('isDeleted', true)
       .include('newFromIsraelId', 'newFromWorldId')
       .limit(QUERY_LIMIT)
       .find();
     
     consola.info("Fetched chavrutas", results);
-    return results.items as Chavruta[];
+    return sortChavrutasByCreationDateDesc(results.items as Chavruta[]);
   } catch (error) {
     consola.error('Error fetching chavrutas:', error);
     throw error;
@@ -337,14 +354,14 @@ export async function fetchPendingChavrutasFromCMS(): Promise<Chavruta[]> {
   try {
     const results = await items
       .query(COLLECTION_NAMES.CHAVRUTAS)
-      .descending('DateOfCreate')
-      .ne('IsDeleted', true)
+      .descending('dateOfCreate')
+      .ne('isDeleted', true)
       .eq('status', ChavrutaStatus.Standby)
       .include('newFromIsraelId', 'newFromWorldId')
       .limit(QUERY_LIMIT)
       .find();
     
-    return results.items as Chavruta[];
+    return sortChavrutasByCreationDateDesc(results.items as Chavruta[]);
   } catch (error) {
     consola.error('Error fetching pending chavrutas:', error);
     throw error;

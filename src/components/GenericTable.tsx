@@ -1,66 +1,18 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { Pencil, Trash2, Eye, Settings, Plus, X, Check, Contact2, Archive, ArchiveRestore, StickyNote, Handshake} from "lucide-react";
-import debounce from 'lodash/debounce';
+import { IconButton } from './table/IconButton';
+import { ActivateButton, DiscardButton, DeleteButton } from './table/TableButtons';
+import { EditableCell, DropdownState } from './table/EditableCell';
+import type { TableColumn, GenericTableProps, TableRowBase } from '../types/table.types';
 import '../styles/UserTable.css';
 
-export interface TableColumn {
-  key: string;
-  label: string;
-  onClick?: (id: string) => void;
-  render?: (row: any) => React.ReactNode;
-  editable?: {
-    options: Array<{ value: string; label: string }>;
-    onSelect: (rowId: string, value: string) => void;
-  } | ((row: any) => {
-    options: Array<{ value: string; label: string }>;
-    onSelect: (rowId: string, value: string) => void;
-  } | undefined);
-}
+// Re-export for backward compatibility
+export { IconButton } from './table/IconButton';
+export type { TableColumn, GenericTableProps } from '../types/table.types';
 
-// Add this custom button component
-const ActivateButton: React.FC = () => (
-  <div className="button-with-title">
-    <Check size={18} className="icon-success" />
-    <span className="button-title">Activate</span>
-  </div>
-);
-
-const DiscardButton: React.FC = () => (
-  <div className="button-with-title discard">
-    <X size={18} className="icon-danger" />
-    <span className="button-title">Discard</span>
-  </div>
-);
-
-// Insert IconButton here
-export const IconButton: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement>> = ({ children, onClick, ...props }) => {
-  return (
-    <button
-      type="button"
-      onClick={(e) => {
-        e.stopPropagation();
-        if (onClick) onClick(e);
-      }}
-      {...props}
-      className={`icon-button ${props.className || ''}`}
-    >
-      {children}
-    </button>
-  );
-};
-
-// Add this custom component before ICON_MAP (around line 35)
-const DeleteButton: React.FC = () => (
-  <div className="button-with-title delete">
-    <Trash2 size={18} className="icon-danger" />
-  </div>
-);
-
-// ICON_MAP follows...
 const ICON_MAP: Record<string, React.ComponentType<any>> = {
   edit: Pencil,
-  // delete: Trash2,  // Remove or comment out this line
-  deleteIcon: Trash2,  // Keep this for other uses if needed
+  deleteIcon: Trash2,
   details: Eye,
   settings: Settings,
   add: Plus,
@@ -68,34 +20,14 @@ const ICON_MAP: Record<string, React.ComponentType<any>> = {
   archive: Archive,
   notes: StickyNote,
   pair: Handshake,
-  activate: ActivateButton,  // Add this line
-  discard: DiscardButton,  // Add this line
-  delete: DeleteButton,  // Add this line to use the custom component
-  // Add more mappings as needed
+  activate: ActivateButton,
+  discard: DiscardButton,
+  delete: DeleteButton,
 };
-
-export interface GenericTableProps {
-  columns: TableColumn[];
-  data: any[];
-  total: number;
-  loading?: boolean;
-  onSearch?: (searchTerm: string) => void;
-  onRowClick?: (row: any) => void;
-  currentPage?: number;  // Add this
-  onPageChange?: (page: number) => void;  // Add this
-  pageSize?: number;  // Add this
-  selectedRowId?: string;  // Add this
-}
 
 const DEFAULT_PAGE_SIZE = 10;
 
-interface DropdownState {
-  isOpen: boolean;
-  rowId: string | null;
-  columnKey: string | null;
-}
-
-export const GenericTable: React.FC<GenericTableProps> = ({ 
+export const GenericTable = <TRow extends TableRowBase = TableRowBase>({ 
   columns, 
   data, 
   total,
@@ -106,7 +38,7 @@ export const GenericTable: React.FC<GenericTableProps> = ({
   onPageChange,
   pageSize = DEFAULT_PAGE_SIZE,
   selectedRowId
-}) => {
+}: GenericTableProps<TRow>) => {
   const [search, setSearch] = useState("");
   const [dropdown, setDropdown] = useState<DropdownState>({
     isOpen: false,
@@ -114,19 +46,14 @@ export const GenericTable: React.FC<GenericTableProps> = ({
     columnKey: null
   });
 
-  const debouncedSearch = useCallback(
-    debounce((value: string) => {
-      setSearch(value);
-      // Reset to page 1 on search
-      if (onPageChange) {
-        onPageChange(1);
-      }
-      if (onSearch) {
-        onSearch(value);
-      }
-    }, 300),
-    [onSearch, onPageChange]
-  );
+  // Handle search change - pass directly to parent without debouncing
+  // (parent hooks like useTableSearch handle debouncing)
+  const handleSearchChange = (value: string) => {
+    setSearch(value);
+    if (onSearch) {
+      onSearch(value);
+    }
+  };
 
   // Handle pagination changes
   const handlePageChange = (newPage: number) => {
@@ -146,57 +73,11 @@ export const GenericTable: React.FC<GenericTableProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [dropdown.isOpen]);
 
-  const renderDropdown = (columnKey: string, rowId: string, options: Array<{ value: string; label: string }>, onSelect: (rowId: string, value: string) => void) => {
-    if (dropdown.isOpen && dropdown.rowId === rowId && dropdown.columnKey === columnKey) {
-      return (
-        <div className="dropdown-content" style={{
-          position: 'absolute',
-          top: '100%',
-          left: '0',
-          right: '0',
-          backgroundColor: 'white',
-          border: '1px solid #ddd',
-          borderRadius: '4px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-          zIndex: 1000,
-          maxHeight: '200px',
-          overflowY: 'auto'
-        }}>
-          {(options || []).map((option) => (
-            <div
-              key={option.value}
-              className="dropdown-item"
-              onClick={(e) => {
-                e.stopPropagation();
-                onSelect(rowId, option.value);
-                setDropdown({ isOpen: false, rowId: null, columnKey: null });
-              }}
-              style={{
-                padding: '8px 12px',
-                cursor: 'pointer',
-                borderBottom: '1px solid #eee'
-              }}
-              onMouseEnter={(e) => {
-                (e.target as HTMLElement).style.backgroundColor = '#f5f5f5';
-              }}
-              onMouseLeave={(e) => {
-                (e.target as HTMLElement).style.backgroundColor = 'white';
-              }}
-            >
-              {option.label}
-            </div>
-          ))}
-        </div>
-      );
-    }
-    return null;
-  };
-
   // Add a safe columns array to avoid undefined in preview builds
   const safeColumns = Array.isArray(columns) ? columns : [];
 
-  const renderCellContent = (columnKey: string, value: any, row: any) => {
-    const column = safeColumns.find(col => col.key === columnKey);
+  const renderCellContent = (columnKey: string, value: unknown, row: TRow) => {
+    const column = safeColumns.find((col: TableColumn<TRow>) => col.key === columnKey);
 
     // Handle function-based or static editable configuration
     let editableConfig;
@@ -209,47 +90,16 @@ export const GenericTable: React.FC<GenericTableProps> = ({
     }
 
     if (editableConfig && editableConfig.options && editableConfig.onSelect) {
-      const options = editableConfig.options || []; // Add safety check
-      
-      // Get current selected value or default to first option
-      const currentValue = value || '';
-      const currentLabel = options.find(opt => opt.value === currentValue)?.label || 
-                          (options.length > 0 ? options[0].label : 'Select...');
-
       return (
-        <div className="editable-cell" onClick={(e) => e.stopPropagation()}>
-          <div
-            onClick={(e) => {
-              e.stopPropagation(); // Stop propagation here too
-              if (options.length > 0) {
-                setDropdown({
-                  isOpen: !dropdown.isOpen || dropdown.rowId !== row.id || dropdown.columnKey !== columnKey,
-                  rowId: row.id,
-                  columnKey: columnKey
-                });
-              }
-            }}
-            className="editable-value"
-            style={{
-              cursor: 'pointer',
-              padding: '4px 8px',
-              border: '1px solid #ddd',
-              borderRadius: '4px',
-              backgroundColor: 'white',
-              minHeight: '20px',
-              position: 'relative',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center'
-            }}
-          >
-            <span>{currentLabel}</span>
-            <span style={{ marginLeft: '8px' }}>
-              {dropdown.isOpen && dropdown.rowId === row.id && dropdown.columnKey === columnKey ? '▲' : '▼'}
-            </span>
-          </div>
-          {renderDropdown(columnKey, row.id, options, editableConfig.onSelect)}
-        </div>
+        <EditableCell
+          columnKey={columnKey}
+          row={row}
+          value={value}
+          options={editableConfig.options}
+          onSelect={editableConfig.onSelect}
+          dropdown={dropdown}
+          setDropdown={setDropdown}
+        />
       );
     }
 
@@ -316,7 +166,7 @@ export const GenericTable: React.FC<GenericTableProps> = ({
           type="text"
           placeholder="Search..."
           value={search}
-          onChange={e => debouncedSearch(e.target.value)}
+          onChange={e => handleSearchChange(e.target.value)}
           className="search-input"
         />
         <span className="results-count">
@@ -345,14 +195,14 @@ export const GenericTable: React.FC<GenericTableProps> = ({
                   <td
                     key={col.key}
                     onClick={(e) => {
-                      if (col.onClick && row?.id) {
+                      if (col.onClick && row) {
                         e.stopPropagation();
-                        col.onClick(row.id);
+                        col.onClick(row);
                       }
                     }}
                     className={col.onClick ? 'clickable' : ''}
                   >
-                    {renderCellContent(col.key, row?.[col.key], row)}
+                    {renderCellContent(col.key, (row as Record<string, unknown>)?.[col.key], row)}
                   </td>
                 ))}
               </tr>

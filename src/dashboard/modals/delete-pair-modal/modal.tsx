@@ -9,6 +9,10 @@ import {
 import '@wix/design-system/styles.global.css';
 import { width, height } from './modal.json';
 import NotesSection from '../../../components/NotesSection';
+import { createLogger } from '../../../utils/logger';
+import { useDashboardModalParams } from '../../../hooks/useDashboardModalParams';
+
+const logger = createLogger('delete-pair-modal');
 
 
 
@@ -29,20 +33,19 @@ const initialModalState: ModalState = {
 const Modal: FC = () => {
   const [modalState, setModalState] = useState<ModalState>(initialModalState);
   const [deleteReason, setDeleteReason] = useState<string>('');
+  const params = useDashboardModalParams<ModalParams>();
 
   useEffect(() => {
-    console.log("opening delete modal");
-    const observerResult = dashboard.observeState((params: ModalParams) => {
-      if (params) {
-        setModalState({
-          pairId: params.pairId || null,
-          onDelete: params.onDelete,
-        });
-      }
-    });
+    logger.debug("opening delete modal");
+    if (!params) {
+      return;
+    }
 
-    return () => observerResult?.disconnect?.();
-  }, []);
+    setModalState({
+      pairId: params.pairId || null,
+      onDelete: params.onDelete,
+    });
+  }, [params]);
 
   const handleDelete = async () => {
     try {
@@ -51,7 +54,7 @@ const Modal: FC = () => {
         dashboard.closeModal();
       }
     } catch (error) {
-      console.error('Error deleting pair:', error);
+      logger.error('Error deleting pair:', error);
     }
   };
 

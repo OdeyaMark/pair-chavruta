@@ -1,44 +1,10 @@
 import { PreferredTracksInfo } from "../constants/tracks";
+import type { LabelValuePair, Question, LearningTime, LearningTimes, ChavrutaCardProps, TrackInfo } from '../types';
+import { createLogger } from '../utils/logger';
 
+export type { LabelValuePair, Question, LearningTime, LearningTimes, ChavrutaCardProps } from '../types';
 
-export interface LabelValuePair {
-  label: string;
-  value: string | number;
-}
-
-export interface Question {
-  id: string;
-  question: string;
-  answer: string;
-}
-
-export interface LearningTime {
-  morning: boolean;
-  noon: boolean;      // Add this
-  evening: boolean;
-  lateNight: boolean; }
-
-export interface LearningTimes {
-  sunday: LearningTime;
-  monday: LearningTime;
-  tuesday: LearningTime;
-  wednesday: LearningTime;
-  thursday: LearningTime;
-}
-
-interface TrackInfo {
-    id: string;
-    trackEn: string;
-  }
-
-export interface ChavrutaCardProps {
-  chavrutaPreference: LabelValuePair[];
-  extraDetails: LabelValuePair[];
-  learningTracks: TrackInfo[];
-  languages: LabelValuePair[];
-  learningTimes: LearningTimes;
-  openQuestions: Question[];
-}
+const logger = createLogger('formatters');
 
 export const EnglishLevels = ["Doesn't have to be perfect. I know some Hebrew", "Conversational level", "Excellent (I don't know any Hebrew whatsoever)", "not specified"];
 export const SkillLevels = ["Beginner", "Moderate", "Advanced", "not specified"];
@@ -47,7 +13,7 @@ export const LearningStyles = ["Deep and Slow", "Progressed, flowing", "Text cen
 const resolveIndexedValue = (options: string[], rawValue: any, defaultValue = 'not specified', debugLabel?: string): string => {
   if (rawValue === null || rawValue === undefined || rawValue === '') {
     if (debugLabel) {
-      console.log(`[formatter] ${debugLabel} missing value; defaulting to ${defaultValue}`);
+      logger.debug(`[formatter] ${debugLabel} missing value; defaulting to ${defaultValue}`);
     }
     return defaultValue;
   }
@@ -58,20 +24,20 @@ const resolveIndexedValue = (options: string[], rawValue: any, defaultValue = 'n
 
   if (Number.isInteger(numericValue) && numericValue >= 0 && numericValue < options.length) {
     if (debugLabel) {
-      console.log(`[formatter] ${debugLabel} numeric ${numericValue} -> ${options[numericValue]}`);
+      logger.debug(`[formatter] ${debugLabel} numeric ${numericValue} -> ${options[numericValue]}`);
     }
     return options[numericValue];
   }
 
   if (typeof rawValue === 'string' && options.includes(rawValue)) {
     if (debugLabel) {
-      console.log(`[formatter] ${debugLabel} direct match -> ${rawValue}`);
+      logger.debug(`[formatter] ${debugLabel} direct match -> ${rawValue}`);
     }
     return rawValue;
   }
 
   if (debugLabel) {
-    console.log(`[formatter] ${debugLabel} unhandled value`, { rawValue, defaultValue });
+    logger.debug(`[formatter] ${debugLabel} unhandled value`, { rawValue, defaultValue });
   }
 
   return defaultValue;
@@ -87,7 +53,7 @@ const checkTimeSlot = (dayValue: any, slot: string) => {
 
 
 // Main formatting function
-export async function formatUserData(rawUser: Record<string, any>): ChavrutaCardProps {
+export async function formatUserData(rawUser: Record<string, any>): Promise<ChavrutaCardProps> {
 
   const learningTimes: LearningTimes = {
     sunday: {
@@ -210,7 +176,7 @@ export async function formatUserData(rawUser: Record<string, any>): ChavrutaCard
         answer: rawUser.whoIntroduced
       });
     }
-    console.log(openQuestions);
+    logger.debug(openQuestions);
 
   if (rawUser.country === 'Israel') {
     // Questions for Israeli users
@@ -322,7 +288,7 @@ export async function reverseFormatUserData(formattedData: ChavrutaCardProps): P
   // Helper function to find value by label in array - with array safety check
   const findValueByLabel = (arr: LabelValuePair[], label: string): string | number => {
     if (!Array.isArray(arr)) {
-      console.warn(`findValueByLabel: Expected array but received ${typeof arr} for label "${label}"`);
+      logger.warn(`findValueByLabel: Expected array but received ${typeof arr} for label "${label}"`);
       return '';
     }
     const item = arr.find(item => item && item.label === label);

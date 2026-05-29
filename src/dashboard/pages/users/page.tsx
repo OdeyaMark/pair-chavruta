@@ -1,95 +1,62 @@
 import React, { useEffect, type FC, useState, useMemo, useCallback } from 'react';
 import { Page, WixDesignSystemProvider, Box, Text, ToggleSwitch, Dropdown, FormField } from '@wix/design-system';
-import { GenericTable, TableColumn } from "../../../components/GenericTable";
+import { GenericTable } from "../../../components/GenericTable";
 import '@wix/design-system/styles.global.css';
 import { fetchCMSData, fetchArchivedUsers, archiveUser, unarchiveUser, deleteUser } from '../../../data/cmsData';
 import { dashboard } from '@wix/dashboard';
-import ContactPopup from '../../../components/contactPopup';
+import { useTablePagination } from '../../../hooks/useTablePagination';
+import { useTableSearch } from '../../../hooks/useTableSearch';
+import { useTableFilters } from '../../../hooks/useTableFilters';
+import { type User, type UserRow } from '../../../types';
+import { formatUsersForTable } from '../../../utils/userFormatters';
+import { MODAL_IDS } from '../../../constants/modals';
+import { createLogger } from '../../../utils/logger';
 
-interface CMSUser {
-  _id: string;
-  fullName: string;
-  country: string;
-  matchTo: number;
-  prefNumberOfMatches: number;
-  dateOfRegistered: string;
-  _createdDate: string;
-  // Add other fields as needed
-}
-
-interface UserRow {
-  id: string;
-  fullName: string;
-  country: string;
-  hasChavruta: string;
-  details: string;
-  contactDetails: string;
-  edit: string;
-  notes: string;
-  archive: string;
-  delete: string;  // Add this line
-  registrationDate: string;
-  registrationYear: string;
-}
+const logger = createLogger('users-page');
 
 const DashboardPage: FC = () => {
   // Single source of truth for users data
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
   
-  // UI state
-  const [showArchived, setShowArchived] = useState(false);
-  const [selectedYear, setSelectedYear] = useState<string>('');
-  const [selectedLocation, setSelectedLocation] = useState<string>('');
-  const [selectedHasChavruta, setSelectedHasChavruta] = useState<string>('');
-  const [contactPopup, setContactPopup] = useState<{
-    isOpen: boolean;
-    email: string;
-    tel: string;
+  // Custom hooks for table management
+  const { filters, setFilter } = useTableFilters<{
+    showArchived: boolean;
+    year: string;
+    location: string;
+    hasChavruta: string;
   }>({
-    isOpen: false,
-    email: '',
-    tel: ''
+    showArchived: false,
+    year: '',
+    location: '',
+    hasChavruta: ''
   });
-  const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 10;
+  
+  const { debouncedSearchTerm, handleSearchChange } = useTableSearch();
+  
+  const { currentPage, pageSize, setCurrentPage, paginate } = useTablePagination({
+    pageSize: 10,
+    resetDependencies: [filters.showArchived, filters.year, filters.location, filters.hasChavruta, debouncedSearchTerm]
+  });
 
   // Fetch data once and when showArchived changes
   useEffect(() => {
     fetchInitialData();
-  }, [showArchived]);
+  }, [filters.showArchived]);
 
   const fetchInitialData = async () => {
     try {
       setLoading(true);
-      console.info('Fetching users data...');
-      const data = await (showArchived ? fetchArchivedUsers() : fetchCMSData());
+      logger.info('Fetching users data...');
+      const data = await (filters.showArchived ? fetchArchivedUsers() : fetchCMSData());
       
-      const formattedUsers = (data as CMSUser[]).map((item) => ({
-        id: item._id || "",
-        fullName: item.fullName || "",
-        country: item.country || "",
-        hasChavruta: item.matchTo < item.prefNumberOfMatches ? "No" : "Yes",
-        details: "View",
-        contactDetails: "",
-        edit: "edit",
-        notes: "",
-        archive: showArchived ? "↑ Unarchive" : "↓ Archive",
-        delete: "Delete",  // Add this line
-        registrationDate: new Date(item.dateOfRegistered).toLocaleDateString('en-US', {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric'
-        }),
-        registrationYear: new Date(item.dateOfRegistered).getFullYear().toString()
-      }));
+      const formattedUsers = formatUsersForTable(data as User[], filters.showArchived);
 
       setUsers(formattedUsers);
       setLoading(false);
-      console.log('Users loaded:', formattedUsers.length, 'items');
+      logger.debug('Users loaded:', formattedUsers.length, 'items');
     } catch (error) {
-      console.error("Error fetching users data:", error);
+      logger.error("Error fetching users data:", error);
       setLoading(false);
     }
   };
@@ -99,54 +66,49 @@ const DashboardPage: FC = () => {
     let filtered = [...users];
 
     // Apply filters
-    if (selectedYear) {
-      filtered = filtered.filter(user => user.registrationYear === selectedYear);
+    if (filters.year) {
+      filtered = filtered.filter(user => user.registrationYear === filters.year);
     }
 
     // Location filter: Israel / Not from Israel
-    if (selectedLocation) {
-      if (selectedLocation === 'israel') {
+    if (filters.location) {
+      if (filters.location === 'israel') {
         filtered = filtered.filter(user => (user.country || '').toLowerCase() === 'israel');
-      } else if (selectedLocation === 'not-israel') {
+      } else if (filters.location === 'not-israel') {
         filtered = filtered.filter(user => (user.country || '').toLowerCase() !== 'israel');
       }
     }
 
-    if (selectedHasChavruta) {
-      filtered = filtered.filter(user => user.hasChavruta === selectedHasChavruta);
+    if (filters.hasChavruta) {
+      filtered = filtered.filter(user => user.hasChavruta === filters.hasChavruta);
     }
 
     // Apply search
-    if (searchTerm) {
-      const search = searchTerm.toLowerCase();
+    if (debouncedSearchTerm) {
+      const search = debouncedSearchTerm.toLowerCase();
       filtered = filtered.filter(user => 
         user.fullName.toLowerCase().includes(search) ||
         user.country.toLowerCase().includes(search)
       );
     }
-    // Pagination
-     const startIdx = (currentPage - 1) * pageSize;
-     console.log("Current Page:", currentPage, "Start Index:", startIdx);
-    const paginatedData = filtered.slice(startIdx, startIdx + pageSize);
-    console.log("Filtered and paginated data:", paginatedData);
     return {
-      data: paginatedData,
+      data: paginate(filtered),
       total: filtered.length
     };
-  }, [users, selectedYear, selectedLocation, selectedHasChavruta, searchTerm, currentPage]);
+  }, [users, filters, debouncedSearchTerm, paginate]);
 
  
   // Event handlers that accept row objects
   const handleDetailsClick = useCallback((row: UserRow) => {
     dashboard.openModal({
-      modalId: '45308f7c-1309-42a3-8a0b-00611cab9ebe', 
+      modalId: MODAL_IDS.USER_DETAILS,
       params: { userId: row.id }
     });
   }, []);
 
   const handleContactClick = useCallback((row: UserRow) => {
     dashboard.openModal({
-      modalId: '45308f7c-1309-42a3-8a0b-00611cab9ebe',
+      modalId: MODAL_IDS.USER_DETAILS,
       params: { 
         userId: row.id,
         contactMode: true 
@@ -155,9 +117,9 @@ const DashboardPage: FC = () => {
   }, []);
 
   const handleEditClick = useCallback((row: UserRow) => {
-    console.log("Opening edit modal for user ID:", row.id);
+    logger.debug("Opening edit modal for user ID:", row.id);
     dashboard.openModal({
-      modalId: '45308f7c-1309-42a3-8a0b-00611cab9ebe', 
+      modalId: MODAL_IDS.USER_DETAILS,
       params: { 
         userId: row.id, 
         editMode: true 
@@ -166,19 +128,19 @@ const DashboardPage: FC = () => {
   }, []);
 
   const handleNotesClick = useCallback((row: UserRow) => {
-    console.log("Opening notes modal for user ID:", row.id);
+    logger.debug("Opening notes modal for user ID:", row.id);
     dashboard.openModal({
-      modalId: '87855b31-290a-42c2-804a-7b776bdb8f5b', 
+      modalId: MODAL_IDS.NOTES,
       params: { 
         userId: row.id, 
         initialNote: "", 
-        handleSave: () => { console.log("saving..."); }
+        handleSave: () => { logger.debug("saving..."); }
       }
     });
   }, []);
 
   const handleArchiveClick = useCallback(async (row: UserRow) => {
-    const isUnarchiving = showArchived;
+    const isUnarchiving = filters.showArchived;
     const action = isUnarchiving ? 'unarchive' : 'archive';
     const confirmed = window.confirm(
       `Are you sure you want to ${action} ${row.fullName}?`
@@ -187,7 +149,7 @@ const DashboardPage: FC = () => {
     if (!confirmed) return;
 
     try {
-      console.log(`${action}ing user:`, row.id);
+      logger.debug(`${action}ing user:`, row.id);
       if (isUnarchiving) {
         await unarchiveUser(row.id);
       } else {
@@ -202,13 +164,13 @@ const DashboardPage: FC = () => {
         type: 'success'
       });
     } catch (error) {
-      console.error(`Error ${action}ing user:`, error);
+      logger.error(`Error ${action}ing user:`, error);
       dashboard.showToast({
         message: `Error ${action}ing user. Please try again.`,
         type: 'error'
       });
     }
-  }, [showArchived]);
+  }, [filters.showArchived]);
 
   const handleDeleteClick = useCallback(async (row: UserRow) => {
     const confirmed = window.confirm(
@@ -219,7 +181,7 @@ const DashboardPage: FC = () => {
     
 
     try {
-      console.log("Permanently deleting user:", row.id);
+      logger.debug("Permanently deleting user:", row.id);
       // TODO: Implement actual delete API call here
       await deleteUser(row.id);
       
@@ -231,7 +193,7 @@ const DashboardPage: FC = () => {
         type: 'success'
       });
     } catch (error) {
-      console.error('Error deleting user:', error);
+      logger.error('Error deleting user:', error);
       dashboard.showToast({
         message: 'Error deleting user. Please try again.',
         type: 'error'
@@ -240,7 +202,7 @@ const DashboardPage: FC = () => {
   }, []);
 
   // Define columns with row-based onClick handlers
-  const columns: TableColumn[] = useMemo(() => [
+  const columns = useMemo(() => [
     { 
       key: "details", 
       label: "Details", 
@@ -267,7 +229,7 @@ const DashboardPage: FC = () => {
     },
     { 
       key: "archive", 
-      label: showArchived ? "Unarchive" : "Archive",
+      label: filters.showArchived ? "Unarchive" : "Archive",
       onClick: (row: UserRow) => handleArchiveClick(row)
     },
     { 
@@ -275,7 +237,7 @@ const DashboardPage: FC = () => {
       label: "Delete",
       onClick: (row: UserRow) => handleDeleteClick(row)
     },
-  ], [handleDetailsClick, handleContactClick, handleEditClick, handleNotesClick, handleArchiveClick, handleDeleteClick, showArchived]);
+  ], [handleDetailsClick, handleContactClick, handleEditClick, handleNotesClick, handleArchiveClick, handleDeleteClick, filters.showArchived]);
 
   const handleAddUser = () => {
     // TODO: Implement add user logic (modal, form, etc.)
@@ -298,16 +260,16 @@ const DashboardPage: FC = () => {
   }, [users]);
 
   const clearAllFilters = useCallback(() => {
-    setSelectedYear('');
-    setSelectedLocation('');
-    setSelectedHasChavruta('');
-  }, []);
+    setFilter('year', '');
+    setFilter('location', '');
+    setFilter('hasChavruta', '');
+  }, [setFilter]);
   
   // Add handler for page change
   const handlePageChange = useCallback((page: number) => {
-    console.log("Page changed to:", page);
+    logger.debug("Page changed to:", page);
     setCurrentPage(page);
-  }, []);
+  }, [setCurrentPage]);
 
   return (
     <WixDesignSystemProvider features={{ newColorsBranding: true }}>
@@ -343,8 +305,8 @@ const DashboardPage: FC = () => {
                   </Text>
                   <Box marginLeft="12px" marginRight="12px">
                     <ToggleSwitch
-                      checked={showArchived}
-                      onChange={() => setShowArchived(prev => !prev)}
+                      checked={filters.showArchived as boolean}
+                      onChange={() => setFilter('showArchived', !(filters.showArchived as boolean))}
                       size="small"
                     />
                   </Box>
@@ -363,8 +325,8 @@ const DashboardPage: FC = () => {
                       { id: '', value: 'All Years' },
                       ...getYearOptions()
                     ]}
-                    selectedId={selectedYear}
-                    onSelect={(option) => setSelectedYear(option?.id?.toString() || '')}
+                    selectedId={filters.year}
+                    onSelect={(option) => setFilter('year', option?.id?.toString() || '')}
                   />
                 </FormField>
                 <FormField label="Location">
@@ -375,8 +337,8 @@ const DashboardPage: FC = () => {
                       { id: 'israel', value: 'Israel' },
                       { id: 'not-israel', value: 'Not from Israel' }
                     ]}
-                    selectedId={selectedLocation}
-                    onSelect={(option) => setSelectedLocation(option?.id?.toString() || '')}
+                    selectedId={filters.location}
+                    onSelect={(option) => setFilter('location', option?.id?.toString() || '')}
                   />
                 </FormField>
                 <FormField label="Has Chavruta">
@@ -387,11 +349,11 @@ const DashboardPage: FC = () => {
                       { id: 'Yes', value: 'Yes' },
                       { id: 'No', value: 'No' }
                     ]}
-                    selectedId={selectedHasChavruta}
-                    onSelect={(option) => setSelectedHasChavruta(option?.id?.toString() || '')}
+                    selectedId={filters.hasChavruta}
+                    onSelect={(option) => setFilter('hasChavruta', option?.id?.toString() || '')}
                   />
                 </FormField>
-                {(selectedYear || selectedLocation || selectedHasChavruta) && (
+                {(filters.year || filters.location || filters.hasChavruta) && (
                   <Box marginLeft="32px">
                     <button 
                       onClick={clearAllFilters}
@@ -420,25 +382,17 @@ const DashboardPage: FC = () => {
               </Box>
 
               {/* Table Section - Add onPageChange prop */}
-              <GenericTable 
+              <GenericTable<UserRow>
                 columns={columns} 
                 data={displayData.data}
                 total={displayData.total}
                 loading={loading}
-                onSearch={(search) => setSearchTerm(search)}
+                onSearch={handleSearchChange}
                 onRowClick={(row) => handleDetailsClick(row)}
-                currentPage={currentPage}  // Pass current page
-                onPageChange={handlePageChange}  // Pass page change handler
-                pageSize={pageSize}  // Pass page size
+                currentPage={currentPage}
+                onPageChange={handlePageChange}
+                pageSize={pageSize}
               />
-              
-              {contactPopup.isOpen && (
-                <ContactPopup
-                  email={contactPopup.email}
-                  tel={contactPopup.tel}
-                  onClose={() => setContactPopup(prev => ({ ...prev, isOpen: false }))}
-                />
-              )}
             </div>
           </div>
         </Page.Content>

@@ -1,4 +1,4 @@
-import React, { type FC, useState, useEffect } from 'react';
+import React, { type FC, useState } from 'react';
 import { dashboard } from '@wix/dashboard';
 import {
   WixDesignSystemProvider,
@@ -8,7 +8,11 @@ import {
 } from '@wix/design-system';
 import '@wix/design-system/styles.global.css';
 import { width, height, title } from './modal.json';
-import { activatePairInDatabase, createNewPairInDatabase, sendPairingEmail, updateChavrutaStatus } from '../../../data/cmsData';
+import { activatePairInDatabase, sendPairingEmail } from '../../../data/cmsData';
+import { createLogger } from '../../../utils/logger';
+import { useDashboardModalParams } from '../../../hooks/useDashboardModalParams';
+
+const logger = createLogger('activate-pair-modal');
 
 interface ModalParams {
   chavrutaId: string;
@@ -18,30 +22,16 @@ interface ModalParams {
   targetUserName: string;
   trackId: string;
   trackName?: string;
-  isNewPair?: boolean;
+  onActivated?: () => Promise<void> | void;
 }
 
 const Modal: FC = () => {
   const [step, setStep] = useState<'confirm' | 'email'>('confirm');
-  const [params, setParams] = useState<ModalParams | null>(null);
+  const params = useDashboardModalParams<ModalParams>();
 
-  useEffect(() => {
-    
-    // Get the modal parameters when the modal opens
-    const observerResult = dashboard.observeState((receivedParams: any) => {
-      console.log("dashboard.observeState callback called with:", receivedParams);
-      if (receivedParams) {
-        setParams(receivedParams);
-      } else {
-        console.log("No params received in observeState");
-      }
-    });
-    
-    return () => {
-      console.log('Modal cleanup called');
-      observerResult?.disconnect?.();
-    };
-  }, []);
+  if (!params) {
+    logger.debug('Modal render - waiting for params');
+  }
 
   const handleConfirm = () => {
     // Move to the email confirmation step
@@ -51,7 +41,7 @@ const Modal: FC = () => {
   const handleSendEmail = async () => {
     
     if (!params) {
-      console.log('No params available, returning early');
+      logger.debug('No params available, returning early');
       return;
     }
 
@@ -63,10 +53,12 @@ const Modal: FC = () => {
         message: `Pair activated between ${params.sourceUserName} and ${params.targetUserName}. Email sent!`,
         type: 'success'
       });
+
+      await params.onActivated?.();
       
       dashboard.closeModal();
     } catch (error) {
-      console.error('Error activating pair or sending email:', error);
+      logger.error('Error activating pair or sending email:', error);
       dashboard.showToast({
         message: 'Error activating pair or sending email',
         type: 'error'
@@ -78,7 +70,7 @@ const Modal: FC = () => {
     
     
     if (!params) {
-      console.log('No params available, returning early');
+      logger.debug('No params available, returning early');
       return;
     }
 
@@ -89,10 +81,12 @@ const Modal: FC = () => {
         message: `Pair activated between ${params.sourceUserName} and ${params.targetUserName}`,
         type: 'success'
       });
+
+      await params.onActivated?.();
       
       dashboard.closeModal();
     } catch (error) {
-      console.error('Error activating pair:', error);
+      logger.error('Error activating pair:', error);
       dashboard.showToast({
         message: 'Error activating pair',
         type: 'error'
@@ -104,7 +98,7 @@ const Modal: FC = () => {
     dashboard.closeModal();
   };
 
-  console.log('Modal render - step:', step, 'params:', params);
+  logger.debug('Modal render - step:', step, 'params:', params);
 
   if (step === 'confirm') {
     return (

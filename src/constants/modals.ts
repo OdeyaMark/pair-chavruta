@@ -1,0 +1,10 @@
+export const MODAL_IDS = {
+  USER_DETAILS: '45308f7c-1309-42a3-8a0b-00611cab9ebe',
+  CHAVRUTA_DETAILS: 'c83c7139-5b30-4e82-be8f-6870568f6ee0',
+  NOTES: '87855b31-290a-42c2-804a-7b776bdb8f5b',
+  ACTIVATE_PAIR: '66aac142-762d-4489-a349-94be53e515c4',
+  MATCHES: 'f03b650d-46f9-43ce-92b0-9bba324c1a20',
+  DELETE_PAIR: '81bfe4af-e5cd-434d-bf31-3641deb7cbd7',
+  TO_ARCHIVE: 'f7b6e1d3-c2fe-46bc-9d85-b8d169ecd888',
+  CHOOSE_TRACK: '9ec1d64e-fb69-4596-955c-0eadbd4c611d',
+} as const;
