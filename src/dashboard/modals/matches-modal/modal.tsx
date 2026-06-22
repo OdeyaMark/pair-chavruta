@@ -6,8 +6,8 @@ import {
 } from '@wix/design-system';
 import '@wix/design-system/styles.global.css';
 import { width, height, title } from './modal.json';
-import MatchPopup from '../../../components/matchPopup';
-import { getUserById } from '../../../data/cmsData';
+import MatchPopup from '../../../features/matches/matchPopup';
+import { getUserById } from '../../../services/cmsData';
 import { createLogger } from '../../../utils/logger';
 import type { User as AppUser } from '../../../types';
 import { useDashboardModalParams } from '../../../hooks/useDashboardModalParams';

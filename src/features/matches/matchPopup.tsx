@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Text } from '@wix/design-system';
 import { Check, X, ChevronDown, ChevronUp, Globe, User, BookOpen, MessageCircle, Calendar, Users } from 'lucide-react';
-import '../styles/matches.css';
-import './UserCard.css';
+import '../../styles/matches.css';
+import '../users/UserCard.css';
 
 interface User {
   _id: string;
@@ -46,10 +46,10 @@ import {
   convertHoursToTargetTimezone,
   findOverlappingHours,
   parseUtcOffset
-} from '../data/matchLogic';
+} from '../../lib/matchLogic';
 
-import { PreferredTracksInfo } from '../constants/tracks';
-import { formatUserData, type ChavrutaCardProps } from '../data/formatters';
+import { PreferredTracksInfo } from '../../constants/tracks';
+import { formatUserData, type ChavrutaCardProps } from '../../lib/formatters';
 
 const MatchPopup: React.FC<MatchPopupProps> = ({ israelUser, diasporaUser, onClose }) => {
   const [israelUserData, setIsraelUserData] = useState<ChavrutaCardProps | null>(null);

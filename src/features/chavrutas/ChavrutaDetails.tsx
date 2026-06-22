@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User, MapPin, Phone, Mail, FileText } from 'lucide-react';
-import '../styles/ChavrutaDetails.css';
+import './ChavrutaDetails.css';
 
 interface Participant {
   fullName: string;

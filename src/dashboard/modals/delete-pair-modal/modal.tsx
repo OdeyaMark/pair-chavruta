@@ -8,7 +8,7 @@ import {
 } from '@wix/design-system';
 import '@wix/design-system/styles.global.css';
 import { width, height } from './modal.json';
-import NotesSection from '../../../components/NotesSection';
+import NotesSection from '../../../features/notes/NotesSection';
 import { createLogger } from '../../../utils/logger';
 import { useDashboardModalParams } from '../../../hooks/useDashboardModalParams';
 

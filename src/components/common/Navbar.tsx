@@ -1,5 +1,5 @@
 import React from "react";
-import { useWixLocation } from "./useWixLocation";
+import { useWixLocation } from "../../hooks/useWixLocation";
 
 const NAV_OPTIONS = [
   { name: "Users", path: "/users" },

@@ -1,8 +1,8 @@
 import React, { useEffect, type FC, useState, useMemo, useCallback } from 'react';
 import { Page, WixDesignSystemProvider, Box, Text, ToggleSwitch, Dropdown, FormField } from '@wix/design-system';
-import { GenericTable } from "../../../components/GenericTable";
+import { GenericTable } from "../../../components/table/GenericTable";
 import '@wix/design-system/styles.global.css';
-import { fetchCMSData, fetchArchivedUsers, archiveUser, unarchiveUser, deleteUser } from '../../../data/cmsData';
+import { fetchCMSData, fetchArchivedUsers, archiveUser, unarchiveUser, deleteUser } from '../../../services/cmsData';
 import { dashboard } from '@wix/dashboard';
 import { useTablePagination } from '../../../hooks/useTablePagination';
 import { useTableSearch } from '../../../hooks/useTableSearch';

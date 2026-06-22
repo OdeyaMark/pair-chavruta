@@ -7,8 +7,8 @@ import {
   type LabelValuePair, 
   type Question, 
   type LearningTimes 
-} from '../data/formatters';
-import { createLogger } from '../utils/logger';
+} from '../../lib/formatters';
+import { createLogger } from '../../utils/logger';
 
 const logger = createLogger('UserCard');
 

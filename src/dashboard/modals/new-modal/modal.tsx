@@ -8,11 +8,11 @@ import {
 } from '@wix/design-system';
 import '@wix/design-system/styles.global.css';
 import { width, height, title } from './modal.json';
-import { fetchUserById, saveUserChanges } from '../../../data/cmsData';
-import UserCard from '../../../components/UserCard';
-import EditUserForm from '../../../components/EditUserForm';
-import { reverseFormatUserData, prepareDataForSaving } from '../../../data/formatters';
-import ContactPopup from '../../../components/contactPopup';
+import { fetchUserById, saveUserChanges } from '../../../services/cmsData';
+import UserCard from '../../../features/users/UserCard';
+import EditUserForm from '../../../features/users/EditUserForm';
+import { reverseFormatUserData, prepareDataForSaving } from '../../../lib/formatters';
+import ContactPopup from '../../../features/users/ContactPopup';
 import { createLogger } from '../../../utils/logger';
 import { useDashboardModalParams } from '../../../hooks/useDashboardModalParams';
 
