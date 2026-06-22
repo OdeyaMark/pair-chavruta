@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect } from "react";
 import consola from 'consola';
-import Navbar from "../components/Navbar";
-import { GenericTable, TableColumn } from "../components/GenericTable";
+import Navbar from "../components/common/Navbar";
+import { GenericTable, TableColumn } from "../components/table/GenericTable";
 import { Pencil } from "lucide-react";
-import { fetchCMSData } from "../data/cmsData";
+import { fetchCMSData } from "../services/cmsData";
 
 const columns: TableColumn[] = [
   { key: "details", label: "Details" },

@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { Pencil, Trash2, Eye, Settings, Plus, X, Check, Contact2, Archive, ArchiveRestore, StickyNote, Handshake} from "lucide-react";
-import { IconButton } from './table/IconButton';
-import { ActivateButton, DiscardButton, DeleteButton } from './table/TableButtons';
-import { EditableCell, DropdownState } from './table/EditableCell';
-import type { TableColumn, GenericTableProps, TableRowBase } from '../types/table.types';
-import '../styles/UserTable.css';
+import { IconButton } from './IconButton';
+import { ActivateButton, DiscardButton, DeleteButton } from './TableButtons';
+import { EditableCell, DropdownState } from './EditableCell';
+import type { TableColumn, GenericTableProps, TableRowBase } from '../../types/table.types';
+import '../../styles/UserTable.css';
 
 // Re-export for backward compatibility
-export { IconButton } from './table/IconButton';
-export type { TableColumn, GenericTableProps } from '../types/table.types';
+export { IconButton } from './IconButton';
+export type { TableColumn, GenericTableProps } from '../../types/table.types';
 
 const ICON_MAP: Record<string, React.ComponentType<any>> = {
   edit: Pencil,

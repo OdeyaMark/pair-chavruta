@@ -8,8 +8,8 @@ import {
 } from '@wix/design-system';
 import '@wix/design-system/styles.global.css';
 import { width, height, title } from './modal.json';
-import ChavrutaDetails from '../../../components/ChavrutaDetails';
-import { updateChavrutaBase } from '../../../data/cmsData';
+import ChavrutaDetails from '../../../features/chavrutas/ChavrutaDetails';
+import { updateChavrutaBase } from '../../../services/cmsData';
 import { createLogger } from '../../../utils/logger';
 import { useDashboardModalParams } from '../../../hooks/useDashboardModalParams';
 

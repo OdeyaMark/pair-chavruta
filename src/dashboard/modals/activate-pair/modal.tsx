@@ -8,7 +8,7 @@ import {
 } from '@wix/design-system';
 import '@wix/design-system/styles.global.css';
 import { width, height, title } from './modal.json';
-import { activatePairInDatabase, sendPairingEmail } from '../../../data/cmsData';
+import { activatePairInDatabase, sendPairingEmail } from '../../../services/cmsData';
 import { createLogger } from '../../../utils/logger';
 import { useDashboardModalParams } from '../../../hooks/useDashboardModalParams';
 

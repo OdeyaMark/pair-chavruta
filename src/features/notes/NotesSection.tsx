@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FileText } from 'lucide-react';
-import '../styles/noteSection.css';
+import './noteSection.css';
 
 interface NotesSectionProps {
   initialNote?: string;

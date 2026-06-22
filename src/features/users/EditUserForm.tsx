@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import debounce from 'lodash/debounce';
 import { Globe, BookOpen, Calendar, User, Plus } from 'lucide-react';
-import { PreferredTracksInfo } from '../constants/tracks';
+import { PreferredTracksInfo } from '../../constants/tracks';
 import { 
   initializeFormData, 
   initializeFormLearningTimes, 
@@ -10,9 +10,9 @@ import {
   EnglishLevels,
   SkillLevels,
   LearningStyles
-} from '../data/formatters';
+} from '../../lib/formatters';
 import './UserCard.css';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 
 const logger = createLogger('EditUserForm');
 

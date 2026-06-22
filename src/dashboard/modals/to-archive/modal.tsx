@@ -9,7 +9,7 @@ import {
 import '@wix/design-system/styles.global.css';
 import { width, height, title } from './modal.json';
 import { createLogger } from '../../../utils/logger';
-import { archiveUser, getUserById } from '../../../data/cmsData';
+import { archiveUser, getUserById } from '../../../services/cmsData';
 import { useDashboardModalParams } from '../../../hooks/useDashboardModalParams';
 
 const logger = createLogger('to-archive-modal');

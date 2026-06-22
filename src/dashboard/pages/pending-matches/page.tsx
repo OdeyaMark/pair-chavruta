@@ -1,8 +1,8 @@
 import React, { type FC, useState, useCallback, useEffect, useMemo } from 'react';
 import { Page, WixDesignSystemProvider, Box } from '@wix/design-system';
 import '@wix/design-system/styles.global.css';
-import { GenericTable } from '../../../components/GenericTable';
-import { fetchPendingChavrutasFromCMS, deleteChavrutaAndUpdateUsers } from '../../../data/cmsData';
+import { GenericTable } from '../../../components/table/GenericTable';
+import { fetchPendingChavrutasFromCMS, deleteChavrutaAndUpdateUsers } from '../../../services/cmsData';
 import { PreferredTracksInfo } from '../../../constants/tracks';
 import { dashboard } from '@wix/dashboard';
 import { MODAL_IDS } from '../../../constants/modals';

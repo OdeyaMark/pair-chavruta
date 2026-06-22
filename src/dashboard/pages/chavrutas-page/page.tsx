@@ -2,13 +2,13 @@ import React, { type FC, useState, useEffect, useMemo, useCallback } from 'react
 import { Page, WixDesignSystemProvider, Dropdown, Box, Text, ToggleSwitch } from '@wix/design-system';
 import { Mail, Trash2, Eye, StickyNote } from 'lucide-react';
 import '@wix/design-system/styles.global.css';
-import { GenericTable, TableColumn } from '../../../components/GenericTable';
+import { GenericTable, TableColumn } from '../../../components/table/GenericTable';
 import { dashboard } from '@wix/dashboard';
 import { 
   fetchChavrutasFromCMS, 
   deleteChavrutaAndUpdateUsers,
   updateChavrutaBase
-} from '../../../data/cmsData';
+} from '../../../services/cmsData';
 import { PairStatus, PairStatusLabels } from '../../../constants/status';
 import { PreferredTracks, PreferredTracksInfo } from '../../../constants/tracks';
 import { MODAL_IDS } from '../../../constants/modals';

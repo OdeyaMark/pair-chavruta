@@ -1,8 +1,8 @@
 import React, { type FC, useState, useMemo, useCallback, useEffect } from 'react';
 import { Page, WixDesignSystemProvider, Layout, Cell, Box, Text, ToggleSwitch } from '@wix/design-system';
 import '@wix/design-system/styles.global.css';
-import { GenericTable } from '../../../components/GenericTable';
-import { createNewPairInDatabase, fetchMatchData, getTracks } from '../../../data/cmsData';
+import { GenericTable } from '../../../components/table/GenericTable';
+import { createNewPairInDatabase, fetchMatchData, getTracks } from '../../../services/cmsData';
 import { Eye, Handshake } from 'lucide-react';
 import { dashboard } from '@wix/dashboard';
 import '../../../styles/matches.css';
@@ -10,7 +10,7 @@ import {
   analyzeMatchCompatibility,
   calculateMatchPercentage,
   type MatchFailureReason,
-} from '../../../data/matchLogic';
+} from '../../../lib/matchLogic';
 import { MODAL_IDS } from '../../../constants/modals';
 import { useTablePagination } from '../../../hooks/useTablePagination';
 import { createLogger } from '../../../utils/logger';

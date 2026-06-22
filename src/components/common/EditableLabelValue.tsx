@@ -1,5 +1,5 @@
 import React, { memo } from 'react';
-import type { LabelValuePair } from '../types';
+import type { LabelValuePair } from '../../types';
 
 interface EditableLabelValueProps {
   item: LabelValuePair;
