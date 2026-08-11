@@ -2,7 +2,7 @@ import React, { type FC, useState, useEffect, useMemo, useCallback } from 'react
 import { Page, WixDesignSystemProvider, Dropdown, Box, Text, ToggleSwitch } from '@wix/design-system';
 import { Mail, Trash2, Eye, StickyNote } from 'lucide-react';
 import '@wix/design-system/styles.global.css';
-import { GenericTable, TableColumn } from '../../../components/GenericTable';
+import { GenericTable } from '../../../components/GenericTable';
 import { dashboard } from '@wix/dashboard';
 import { 
   fetchChavrutasFromCMS, 
@@ -14,6 +14,8 @@ import { PreferredTracks, PreferredTracksInfo } from '../../../constants/tracks'
 import { MODAL_IDS } from '../../../constants/modals';
 import { useTablePagination } from '../../../hooks/useTablePagination';
 import { createLogger } from '../../../utils/logger';
+import type { Chavruta } from '../../../types';
+import type { TableColumn } from '../../../types/table.types';
 
 const logger = createLogger('chavrutas-page');
 
@@ -38,6 +40,18 @@ interface ChavrutaRow {
   deleteDate?: string;
   deleteReason?: string;
   notes?: JSX.Element;
+}
+
+function getParticipantName(participant: Chavruta['newFromIsraelId'] | Chavruta['newFromWorldId']): string {
+  return 'fullName' in participant ? participant.fullName : 'N/A';
+}
+
+function getChavrutaCreationDate(item: Chavruta): string {
+  return item.dateOfCreate ?? item.DateOfCreate ?? '';
+}
+
+function isArchivedChavruta(item: Chavruta): boolean {
+  return item.isDeleted === true || item.IsDeleted === true;
 }
 
 const DashboardPage: FC = () => {
@@ -72,22 +86,23 @@ const DashboardPage: FC = () => {
       const archived: ChavrutaRow[] = [];
       
       data.forEach(item => {
+        const creationDate = getChavrutaCreationDate(item);
         const formattedItem: ChavrutaRow = {
           id: item._id,
-          israeliParticipant: item.newFromIsraelId?.fullName || 'N/A',
-          diasporaParticipant: item.newFromWorldId?.fullName || 'N/A',
-          creationDate: new Date(item.dateOfCreate).toLocaleDateString('en-US', {
+          israeliParticipant: getParticipantName(item.newFromIsraelId),
+          diasporaParticipant: getParticipantName(item.newFromWorldId),
+          creationDate: creationDate ? new Date(creationDate).toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'short',
             day: 'numeric'
-          }),
+          }) : 'Unknown',
           track: Object.values(PreferredTracksInfo).find(t => t.id === item.track)?.trackEn || 'Unknown Track',
           note: item.note || '',
           status: PairStatusLabels[Number(item.status) as PairStatus] || PairStatusLabels[PairStatus.Default],
-          matchDate: item.dateOfCreate,
+          matchDate: creationDate,
           participantData: {
-            israeli: item.newFromIsraelId || {},
-            diaspora: item.newFromWorldId || {}
+            israeli: item.newFromIsraelId as Record<string, any>,
+            diaspora: item.newFromWorldId as Record<string, any>
           },
           // Create JSX elements directly here - no serialization issues
           details: <div className="icon-cell"><Eye size={20} className="action-icon" /></div>,
@@ -96,7 +111,7 @@ const DashboardPage: FC = () => {
           notes: <div className="icon-cell"><StickyNote size={20} className="action-icon" /></div>
         };
 
-        if (item.isDeleted) {
+        if (isArchivedChavruta(item)) {
           formattedItem.deleteDate = item.dateOfDelete ? new Date(item.dateOfDelete).toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'short',
@@ -337,7 +352,7 @@ const DashboardPage: FC = () => {
   }, [activeChavrutas, archivedChavrutas, currentChavrutas]);
 
   // Dynamic columns based on archive mode
-  const columns: TableColumn[] = useMemo(() => {
+  const columns: TableColumn<ChavrutaRow>[] = useMemo(() => {
     const baseColumns = [
       { key: "israeliParticipant", label: "Israeli Participant" },
       { key: "diasporaParticipant", label: "Diaspora Participant" },

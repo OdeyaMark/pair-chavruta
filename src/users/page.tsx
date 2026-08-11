@@ -2,10 +2,10 @@ import React, { useCallback, useEffect } from "react";
 import consola from 'consola';
 import Navbar from "../components/Navbar";
 import { GenericTable, TableColumn } from "../components/GenericTable";
-import { Pencil } from "lucide-react";
 import { fetchCMSData } from "../data/cmsData";
+import type { TableRowBase } from '../types/table.types';
 
-const columns: TableColumn[] = [
+const columns: TableColumn<TableRowBase>[] = [
   { key: "details", label: "Details" },
   { key: "fullName", label: "Full Name" },
   { key: "country", label: "Country" },
@@ -15,30 +15,6 @@ const columns: TableColumn[] = [
   { key: "notes", label: "Notes" },
   { key: "archive", label: "Archive" },
 ];
-
-// Example fetch function (replace with real backend call)
-const fetchUsers = async (search: string, page: number, pageSize: number) => {
-  // TODO: Replace with actual API call
-  
-  // Simulate data
-  const allUsers = Array.from({ length: 42 }, (_, i) => ({
-    details: "View",
-    fullName: `User ${i + 1}`,
-    country: "Israel",
-    contactDetails: "user@example.com",
-    hasChavruta: i % 2 === 0 ? "Yes" : "No",
-    edit: "edit",
-    notes: "Some notes",
-    archive: "Archive",
-  })).filter(u => u.fullName.toLowerCase().includes(search.toLowerCase()));
-
-  const start = (page - 1) * pageSize;
-  const end = start + pageSize;
-  return {
-    data: allUsers.slice(start, end),
-    total: allUsers.length,
-  };
-};
 
 const Users: React.FC = () => {
   consola.info('Users page rendered');
@@ -72,7 +48,7 @@ const Users: React.FC = () => {
             Add User
           </button>
         </div>
-        <GenericTable columns={columns} fetchData={fetchUsers} />
+        <GenericTable columns={columns} data={[]} total={0} />
       </div>
     </div>
   );

@@ -5,11 +5,15 @@ import '../styles/noteSection.css';
 interface NotesSectionProps {
   initialNote?: string;
   onSave: (note: string) => Promise<void>;
+  showSaveButton?: boolean;
+  onChange?: (note: string) => void;
 }
 
 const NotesSection: React.FC<NotesSectionProps> = ({ 
   initialNote = '', 
-  onSave 
+  onSave,
+  showSaveButton = true,
+  onChange
 }) => {
   const [note, setNote] = useState<string>(initialNote);
   const [isSaving, setIsSaving] = useState(false);
@@ -18,6 +22,10 @@ const NotesSection: React.FC<NotesSectionProps> = ({
   useEffect(() => {
     setNote(initialNote);
   }, [initialNote]);
+
+  useEffect(() => {
+    onChange?.(note);
+  }, [note, onChange]);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -69,13 +77,15 @@ const NotesSection: React.FC<NotesSectionProps> = ({
             >
               Clear Note
             </button>
-            <button
-              onClick={handleSave}
-              className="button button-primary"
-              disabled={isSaving}
-            >
-              {isSaving ? 'Saving...' : 'Save'}
-            </button>
+            {showSaveButton ? (
+              <button
+                onClick={handleSave}
+                className="button button-primary"
+                disabled={isSaving}
+              >
+                {isSaving ? 'Saving...' : 'Save'}
+              </button>
+            ) : null}
           </div>
         </div>
       </div>

@@ -14,6 +14,7 @@ import {
 import { MODAL_IDS } from '../../../constants/modals';
 import { useTablePagination } from '../../../hooks/useTablePagination';
 import { createLogger } from '../../../utils/logger';
+import type { LearningTime, Track } from '../../../types';
 
 const logger = createLogger('matches-page');
 
@@ -21,23 +22,23 @@ const logger = createLogger('matches-page');
 interface User {
   id: string;
   fullName: string;
-  country?: string;
+  country: string;
   gender?: string;
   prefGender?: string;
   skillLevel?: number;
   desiredSkillLevel?: number;
   englishLevel?: number;
   desiredEnglishLevel?: number;
-  preferredTracks?: string[];
-  utcOffset?: number;
+  preferredTracks?: Array<string | number>;
+  utcOffset?: string | number;
   learningStyle?: number;
   matchTo?: number;
   prefNumberOfMatches?: number;
-  sunday?: { morning: boolean; noon: boolean; evening: boolean; lateNight: boolean; };
-  monday?: { morning: boolean; noon: boolean; evening: boolean; lateNight: boolean; };
-  tuesday?: { morning: boolean; noon: boolean; evening: boolean; lateNight: boolean; };
-  wednesday?: { morning: boolean; noon: boolean; evening: boolean; lateNight: boolean; };
-  thursday?: { morning: boolean; noon: boolean; evening: boolean; lateNight: boolean; };
+  sunday?: LearningTime | string[];
+  monday?: LearningTime | string[];
+  tuesday?: LearningTime | string[];
+  wednesday?: LearningTime | string[];
+  thursday?: LearningTime | string[];
   matchPercentage?: number;
   commonTracks?: string[];
   havrutaFound?: boolean;
@@ -53,6 +54,30 @@ const FAILURE_REASON_LABELS: Record<MatchFailureReason, string> = {
   tracks: 'No shared track',
   time: 'No time overlap',
   limit: 'Match limit reached',
+};
+
+const normalizeTrackIds = (trackIds?: Array<string | number>): number[] =>
+  (trackIds || [])
+    .map((trackId) => typeof trackId === 'number' ? trackId : Number.parseInt(trackId, 10))
+    .filter((trackId) => Number.isInteger(trackId));
+
+const normalizeLearningTime = (value?: LearningTime | string[]): LearningTime | undefined => {
+  if (!value) {
+    return undefined;
+  }
+
+  if (!Array.isArray(value)) {
+    return value;
+  }
+
+  const normalizedValues = value.map((item) => item.toLowerCase());
+
+  return {
+    morning: normalizedValues.includes('morning'),
+    noon: normalizedValues.includes('noon'),
+    evening: normalizedValues.includes('evening'),
+    lateNight: normalizedValues.includes('late night') || normalizedValues.includes('latenight'),
+  };
 };
 
 const DashboardPage: FC = () => {
@@ -90,7 +115,7 @@ const DashboardPage: FC = () => {
   });
   
   const [trackSelection, setTrackSelection] = useState<{[key: string]: string}>({});
-  const [allTracks, setAllTracks] = useState<Array<{id: number, trackEn: string}>>([]);
+  const [allTracks, setAllTracks] = useState<Track[]>([]);
   const [editableTrackRows, setEditableTrackRows] = useState<Set<string>>(new Set());
 
   // Fetch initial data
@@ -112,14 +137,14 @@ const DashboardPage: FC = () => {
       const formattedUsers = userData?.map(user => ({
         id: user._id,
         fullName: user.fullName,
-        country: user.country,
+        country: user.country || '',
         gender: user?.gender?.length ? user.gender[0] : undefined,
         prefGender: user?.prefGender?.length ? user.prefGender[0] : undefined,
         skillLevel: user.skillLevel,
         desiredSkillLevel: user.desiredSkillLevel,
         englishLevel: user.englishLevel,
         desiredEnglishLevel: user.desiredEnglishLevel,
-        learningStyle: user.learningStyle,
+        learningStyle: user.prefLearningStyle,
         preferredTracks: user.prefTracks || [],
         utcOffset: user.utcOffset,
         sunday: user.sunday,
@@ -285,20 +310,20 @@ const DashboardPage: FC = () => {
         _id: row.id,
         fullName: row.fullName,
         country: row.country,
-        gender: row.gender ? [row.gender] : undefined,
-        prefGender: row.prefGender ? [row.prefGender] : undefined,
+        gender: row.gender || '',
+        prefGender: row.prefGender,
         skillLevel: row.skillLevel,
         desiredSkillLevel: row.desiredSkillLevel,
         englishLevel: row.englishLevel,
         desiredEnglishLevel: row.desiredEnglishLevel,
         learningStyle: row.learningStyle,
-        prefTracks: row.preferredTracks || [],
-        utcOffset: row.utcOffset,
-        sunday: row.sunday,
-        monday: row.monday,
-        tuesday: row.tuesday,
-        wednesday: row.wednesday,
-        thursday: row.thursday,
+        prefTracks: normalizeTrackIds(row.preferredTracks),
+        utcOffset: row.utcOffset ?? '',
+        sunday: normalizeLearningTime(row.sunday),
+        monday: normalizeLearningTime(row.monday),
+        tuesday: normalizeLearningTime(row.tuesday),
+        wednesday: normalizeLearningTime(row.wednesday),
+        thursday: normalizeLearningTime(row.thursday),
         matchTo: row.matchTo,
         prefNumberOfMatches: row.prefNumberOfMatches
       };
@@ -307,20 +332,20 @@ const DashboardPage: FC = () => {
         _id: user.id,
         fullName: user.fullName,
         country: user.country,
-        gender: user.gender ? [user.gender] : undefined,
-        prefGender: user.prefGender ? [user.prefGender] : undefined,
+        gender: user.gender || '',
+        prefGender: user.prefGender,
         skillLevel: user.skillLevel,
         desiredSkillLevel: user.desiredSkillLevel,
         englishLevel: user.englishLevel,
         desiredEnglishLevel: user.desiredEnglishLevel,
         learningStyle: user.learningStyle,
-        prefTracks: user.preferredTracks || [],
-        utcOffset: user.utcOffset,
-        sunday: user.sunday,
-        monday: user.monday,
-        tuesday: user.tuesday,
-        wednesday: user.wednesday,
-        thursday: user.thursday,
+        prefTracks: normalizeTrackIds(user.preferredTracks),
+        utcOffset: user.utcOffset ?? '',
+        sunday: normalizeLearningTime(user.sunday),
+        monday: normalizeLearningTime(user.monday),
+        tuesday: normalizeLearningTime(user.tuesday),
+        wednesday: normalizeLearningTime(user.wednesday),
+        thursday: normalizeLearningTime(user.thursday),
         matchTo: user.matchTo,
         prefNumberOfMatches: user.prefNumberOfMatches
       };

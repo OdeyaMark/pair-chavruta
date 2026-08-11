@@ -16,7 +16,12 @@ export async function sendWixEmail(contactDetails: { fName: string, lName: strin
   },
 });
   try {
-    const response = await client.functions.post("newSendEmail", {
+    const functionsClient = client as typeof client & {
+      functions: {
+        post: (path: string, options: { body: string; headers: Record<string, string> }) => Promise<Response>;
+      };
+    };
+    const response = await functionsClient.functions.post("newSendEmail", {
       body: JSON.stringify({ 
       fName: contactDetails.fName, 
       lName: contactDetails.lName, 

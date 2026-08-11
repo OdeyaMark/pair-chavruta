@@ -12,6 +12,10 @@ import { createLogger } from '../utils/logger';
 
 const logger = createLogger('UserCard');
 
+interface UserCardProps {
+  user: Record<string, any>;
+}
+
 const LabelValueSection = React.memo<{ 
   title: string; 
   items: LabelValuePair[]; 
@@ -77,6 +81,9 @@ const UserCard = React.memo<UserCardProps>(({ user }) => {
     openQuestions
   } = cardData;
 
+  const days: Array<keyof LearningTimes> = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday'];
+  const slots: Array<keyof LearningTimes['sunday']> = ['morning', 'noon', 'evening', 'lateNight'];
+
   return (
     <div className="user-card-container">
       <LabelValueSection 
@@ -128,10 +135,10 @@ const UserCard = React.memo<UserCardProps>(({ user }) => {
               </tr>
             </thead>
             <tbody>
-              {['sunday', 'monday', 'tuesday', 'wednesday', 'thursday'].map((day) => (
+              {days.map((day) => (
                 <tr key={day}>
                   <td className="capitalize">{day}</td>
-                  {['morning', 'noon', 'evening', 'lateNight'].map((slot) => (
+                  {slots.map((slot) => (
                     <td key={slot} className="text-center">
                       <div className={`time-indicator ${
                         learningTimes[day][slot] ? 'available' : 'unavailable'

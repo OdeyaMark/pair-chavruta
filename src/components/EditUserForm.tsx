@@ -75,6 +75,7 @@ const EditUserForm: React.FC<EditUserFormProps> = ({ user, onChange }) => {
     return {
       ...initialData,
       ...serverTimeData,
+      learningTracks: initialData.prefTracks || [],
       // Override gender fields if needed
       gender: genderValue,
       prefGender: prefGenderValue,
@@ -370,7 +371,7 @@ const EditUserForm: React.FC<EditUserFormProps> = ({ user, onChange }) => {
         <TrackList 
         tracks={formData.prefTracks} 
         onRemove={(id) => {
-          const newTracks = formData.prefTracks.filter(trackId => trackId !== id);
+          const newTracks = formData.prefTracks.filter((trackId: string) => trackId !== id);
           setFormData(prev => ({
             ...prev,
             prefTracks: newTracks,

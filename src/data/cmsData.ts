@@ -22,6 +22,8 @@ import {
 
 const QUERY_LIMIT = 1000;
 
+type UserUpdateItem = Omit<User, '_createdDate'> & { _createdDate?: Date };
+
 // Track mapping for legacy migration (keep for reference but move to separate migration file if needed)
 const LEGACY_TRACK_MAPPING: Record<number, string | null> = {
   0: "df6ce1e8-1839-4749-bd4f-495295d75657", // Tanya (Chassidic Thought)
@@ -32,6 +34,11 @@ const LEGACY_TRACK_MAPPING: Record<number, string | null> = {
   5: null, // NoPreference
   6: "788830c2-45f4-471d-aa0d-8c7412826562"  // IndependentLearning
 };
+
+function toUserUpdateItem(user: User): UserUpdateItem {
+  const { _createdDate, ...rest } = user;
+  return rest;
+}
 
 // ============================================================================
 // User Operations
@@ -178,7 +185,7 @@ export async function saveUserChanges(userData: User, user_id: string): Promise<
       throw new Error('User ID is required');
     }
     userData._id = user_id;
-    const results = await items.update(COLLECTION_NAMES.USERS, userData);
+    const results = await items.update(COLLECTION_NAMES.USERS, toUserUpdateItem(userData));
     return results;
   } catch (error) {
     consola.error('Error saving user changes:', error);
@@ -205,7 +212,7 @@ export async function updateUserBase(userId: string, updateFn: UpdateFunction<Us
     const currentUser = userResult.items[0] as User;
     const updatedUser = updateFn(currentUser);
     
-    await items.update(COLLECTION_NAMES.USERS, updatedUser);
+    await items.update(COLLECTION_NAMES.USERS, toUserUpdateItem(updatedUser));
     consola.success('User updated successfully');
   } catch (error) {
     consola.error('Error updating user:', error);
@@ -487,14 +494,14 @@ export async function createNewPairInDatabase(
       }
 
       await Promise.all([
-        items.update(COLLECTION_NAMES.USERS, {
+        items.update(COLLECTION_NAMES.USERS, toUserUpdateItem({
           ...israeliUserData,
           matchTo: (israeliUserData.matchTo || 0) + 1
-        }),
-        items.update(COLLECTION_NAMES.USERS, {
+        })),
+        items.update(COLLECTION_NAMES.USERS, toUserUpdateItem({
           ...worldUserData,
           matchTo: (worldUserData.matchTo || 0) + 1
-        })
+        }))
       ]);
 
       consola.success(`Updated matchTo counts - Israeli: ${(israeliUserData.matchTo || 0) + 1}, World: ${(worldUserData.matchTo || 0) + 1}`);
@@ -620,7 +627,8 @@ export async function fetchTracks(): Promise<Track[]> {
       .fields("_id", "trackEn")
       .find();
     
-    const tracks: Track[] = results.items.map(item => ({
+    const trackItems = results.items as Array<{ _id: string; trackEn: string }>;
+    const tracks: Track[] = trackItems.map(item => ({
       id: item._id,
       trackEn: item.trackEn
     }));

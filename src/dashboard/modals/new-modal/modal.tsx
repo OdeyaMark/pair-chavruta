@@ -15,6 +15,7 @@ import { reverseFormatUserData, prepareDataForSaving } from '../../../data/forma
 import ContactPopup from '../../../components/contactPopup';
 import { createLogger } from '../../../utils/logger';
 import { useDashboardModalParams } from '../../../hooks/useDashboardModalParams';
+import type { User } from '../../../types';
 
 const logger = createLogger('new-modal');
 
@@ -90,7 +91,7 @@ const Modal: FC = () => {
         // Use the new formatter function to prepare data for saving
         const dataToSave = prepareDataForSaving(editedData);
         
-        await saveUserChanges(dataToSave, modalState.userId);
+        await saveUserChanges(dataToSave as User, modalState.userId);
         dashboard.closeModal();
       } catch (error) {
         logger.error('Error saving user data:', error);

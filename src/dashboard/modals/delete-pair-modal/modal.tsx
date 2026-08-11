@@ -33,6 +33,7 @@ const initialModalState: ModalState = {
 const Modal: FC = () => {
   const [modalState, setModalState] = useState<ModalState>(initialModalState);
   const [deleteReason, setDeleteReason] = useState<string>('');
+  const [validationMessage, setValidationMessage] = useState<string>('');
   const params = useDashboardModalParams<ModalParams>();
 
   useEffect(() => {
@@ -48,9 +49,16 @@ const Modal: FC = () => {
   }, [params]);
 
   const handleDelete = async () => {
+    const trimmedReason = deleteReason.trim();
+
+    if (!trimmedReason) {
+      setValidationMessage('A delete reason is required.');
+      return;
+    }
+
     try {
       if (modalState.pairId && modalState.onDelete) {
-        await modalState.onDelete(modalState.pairId, deleteReason);
+        await modalState.onDelete(modalState.pairId, trimmedReason);
         dashboard.closeModal();
       }
     } catch (error) {
@@ -80,8 +88,19 @@ const Modal: FC = () => {
               onSave={async (note: string) => {
                 setDeleteReason(note);
               }}
+              onChange={(note) => {
+                setDeleteReason(note);
+                if (validationMessage && note.trim()) {
+                  setValidationMessage('');
+                }
+              }}
               showSaveButton={false}
             />
+            {validationMessage ? (
+              <Text size="small">
+                {validationMessage}
+              </Text>
+            ) : null}
           </Box>
         }
       />

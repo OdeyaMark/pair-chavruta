@@ -9,6 +9,7 @@ import {
 import '@wix/design-system/styles.global.css';
 import { width, height, title } from './modal.json';
 import ChavrutaDetails from '../../../components/ChavrutaDetails';
+import type { Participant } from '../../../components/ChavrutaDetails';
 import { updateChavrutaBase } from '../../../data/cmsData';
 import { createLogger } from '../../../utils/logger';
 import { useDashboardModalParams } from '../../../hooks/useDashboardModalParams';
@@ -60,6 +61,7 @@ const Modal: FC = () => {
             <ChavrutaDetails 
               israeliParticipant={modalParams?.israeliParticipant}
               diasporaParticipant={modalParams?.diasporaParticipant}
+              chavrutaId={modalParams?.chavrutaId}
               initialNote={modalParams?.initialNote}
               onNoteChange={handleNoteChange}
             />

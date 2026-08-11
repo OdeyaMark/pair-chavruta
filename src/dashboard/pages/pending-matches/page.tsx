@@ -9,6 +9,7 @@ import { MODAL_IDS } from '../../../constants/modals';
 import { createLogger } from '../../../utils/logger';
 import { useTablePagination } from '../../../hooks/useTablePagination';
 import { useTableSearch } from '../../../hooks/useTableSearch';
+import type { Chavruta } from '../../../types';
 
 const logger = createLogger('pending-matches-page');
 
@@ -23,6 +24,10 @@ interface PendingMatch {
   diasporaId: string;
   israeliName: string;
   diasporaName: string;
+}
+
+function getParticipantName(participant: Chavruta['newFromIsraelId'] | Chavruta['newFromWorldId']): string {
+  return 'fullName' in participant ? participant.fullName : 'Unknown';
 }
 
 const DashboardPage: FC = () => {
@@ -52,14 +57,14 @@ const DashboardPage: FC = () => {
 
         return {
           id: chavruta._id,
-          israeliParticipant: chavruta.newFromIsraelId?.fullName || 'Unknown',
-          diasporaParticipant: chavruta.newFromWorldId?.fullName || 'Unknown',
+          israeliParticipant: getParticipantName(chavruta.newFromIsraelId),
+          diasporaParticipant: getParticipantName(chavruta.newFromWorldId),
           trackName: track?.trackEn || 'Unknown Track',
           trackId: chavruta.track || '',
           israeliId: chavruta.newFromIsraelId?._id || '',
           diasporaId: chavruta.newFromWorldId?._id || '',
-          israeliName: chavruta.newFromIsraelId?.fullName || 'Unknown',
-          diasporaName: chavruta.newFromWorldId?.fullName || 'Unknown'
+          israeliName: getParticipantName(chavruta.newFromIsraelId),
+          diasporaName: getParticipantName(chavruta.newFromWorldId)
         };
       });
 

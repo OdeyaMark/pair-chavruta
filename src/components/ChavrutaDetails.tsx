@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { User, MapPin, Phone, Mail, FileText } from 'lucide-react';
 import '../styles/ChavrutaDetails.css';
 
-interface Participant {
+export interface Participant {
   fullName: string;
   email: string;
   tel?: string;  // Changed from phone to tel to match your data structure
